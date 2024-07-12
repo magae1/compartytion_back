@@ -1,0 +1,7 @@
+.env
+
+/src/compartytion/db.sqlite3
+
+#intellij
+/.idea
+compartytion_back.iml
