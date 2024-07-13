@@ -2,16 +2,14 @@ from .base import *
 
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS += [
     "debug_toolbar",
 ]
 
+INTERNAL_IPS = ["127.0.0.1"]
+
 MIDDLEWARE += [
     "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
-
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
-CORS_URLS_REGEX = r"^/api/.*$"
