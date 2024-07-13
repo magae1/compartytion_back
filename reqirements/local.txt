@@ -1,5 +1,7 @@
 -r base.txt
 
 django-debug-toolbar==4.4.6
+drf-spectacular==0.27.2
+djangorestframework-simplejwt==5.3.1
 
 pre-commit>=3.7.1

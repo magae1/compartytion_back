@@ -1,3 +1,5 @@
 .env
 
 /src/compartytion/db.sqlite3
+
+*/.pyc
