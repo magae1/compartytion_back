@@ -1,17 +1,18 @@
-import pyotp
+from datetime import timedelta
+
 from django.db import models
-from django.conf import settings
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
     PermissionsMixin,
 )
+from django.conf import settings
 from django.core.mail import send_mail
 from django.core.validators import RegexValidator, MinLengthValidator
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from pyotp import random_base32
+from ..utils import generate_otp
 
 
 class AccountManager(BaseUserManager):
@@ -99,15 +100,21 @@ class Account(AbstractBaseUser, PermissionsMixin):
 
 class UnauthenticatedUser(models.Model):
     email = models.EmailField(primary_key=True, unique=True)
-    otp_seed = models.TextField(
-        max_length=32, default=random_base32, null=False, blank=False, editable=False
+    otp = models.TextField(
+        max_length=6,
+        default=generate_otp,
+        null=False,
+        blank=False,
+        validators=[
+            RegexValidator(
+                regex="^[0-9]{6}$", message="OTP는 반드시 6자로 입력되어야 합니다."
+            )
+        ],
     )
-    otp_made_at = models.DateTimeField(
+    created_at = models.DateTimeField(
         default=timezone.now, null=False, blank=False, editable=False
     )
-    is_verified = models.BooleanField(
-        default=False, null=False, blank=False, editable=False
-    )
+    is_verified = models.BooleanField(default=False, null=False, blank=False)
 
     objects = BaseUserManager()
 
@@ -122,19 +129,18 @@ class UnauthenticatedUser(models.Model):
         self.email = self.__class__.objects.normalize_email(self.email)
         super().save(*args, **kwargs)
 
-    def generate_otp(self) -> str:
-        self.otp_made_at = timezone.now()
-        totp = pyotp.TOTP(self.otp_seed, interval=settings.OTP_INTERVAL)
-        return totp.at(self.otp_made_at)
-
     def email_user_with_otp(self, from_email=None, **kwargs):
-        otp = self.generate_otp()
-        send_mail(_("OTP 인증코드"), otp, from_email, [self.email], **kwargs)
+        send_mail(_("OTP 인증코드"), self.otp, from_email, [self.email], **kwargs)
 
     def verify_otp(self, otp: str) -> bool:
-        totp = pyotp.TOTP(self.otp_seed, interval=settings.OTP_INTERVAL)
-        return totp.verify(otp)
+        if (
+            timezone.now() - self.created_at < timedelta(minutes=settings.OTP_MINUTES)
+            and otp == self.otp
+        ):
+            return True
+        return False
 
-    def get_otp_time_remaining(self):
-        totp = pyotp.TOTP(self.otp_seed, interval=settings.OTP_INTERVAL)
-        return totp.interval - timezone.now().timestamp() % totp.interval
+    def otp_time_remaining(self) -> timedelta:
+        return (
+            self.created_at + timedelta(minutes=settings.OTP_MINUTES) - timezone.now()
+        )
