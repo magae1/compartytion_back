@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from drf_spectacular.utils import extend_schema
 
-from .models import Account, UnauthenticatedUser
+from .models import Account
 from .serializers import (
     AccountCreationSerializer,
     EmailSerializer,
@@ -25,18 +25,13 @@ class AuthViewSet(viewsets.GenericViewSet):
     def check_email(self, request):
         serializer = EmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        if not serializer.data["exists"]:
-            unauthenticated_user = UnauthenticatedUser(email=serializer.data["email"])
-            unauthenticated_user.email_user_with_otp()
-            unauthenticated_user.save()
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
     @action(methods=["POST"], detail=False, serializer_class=TokenObtainPairSerializer)
     def login(self, request):
         serializer = TokenObtainPairSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
     @action(methods=["POST"], detail=False, serializer_class=EmailWithOTPSerializer)
     def verify_otp(self, request):

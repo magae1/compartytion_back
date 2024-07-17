@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
@@ -65,9 +64,7 @@ class EmailWithOTPSerializer(serializers.ModelSerializer):
 
 class OTPRequestSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True)
-    remaining_time = serializers.DurationField(
-        max_value=settings.OTP_MINUTES * 60, read_only=True
-    )
+    remaining_time = serializers.DurationField(read_only=True)
 
     class Meta:
         model = UnauthenticatedUser
@@ -76,8 +73,6 @@ class OTPRequestSerializer(serializers.ModelSerializer):
     def validate_email(self, email):
         if Account.objects.filter(email=email).exists():
             raise serializers.ValidationError(_("이미 회원가입된 이메일입니다."))
-        elif UnauthenticatedUser.objects.filter(email=email, is_verified=True).exists():
-            raise serializers.ValidationError(_("이미 인증된 이메일입니다."))
         return email
 
     def to_representation(self, instance):

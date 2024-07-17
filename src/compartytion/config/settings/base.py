@@ -156,4 +156,4 @@ SIMPLE_JWT = {
     "TOKEN_REFRESH_SERIALIZER": "rest_framework_simplejwt.serializers.TokenRefreshSerializer",
 }
 
-OTP_MINUTES = 5
+OTP_SECONDS = 5 * 60  # 5 minutes

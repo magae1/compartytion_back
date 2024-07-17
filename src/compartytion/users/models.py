@@ -20,7 +20,7 @@ class AccountManager(BaseUserManager):
         if email is None:
             raise ValueError("이메일은 반드시 입력해야 합니다.")
         if username is None:
-            raise ValueError("유저명은 반드시 입력해야 합니다.")
+            raise ValueError("사용자명은 반드시 입력해야 합니다.")
         email = self.normalize_email(email)
         user = self.model(email=email, username=username, **kwargs)
         user.set_password(password)
@@ -46,16 +46,15 @@ class AccountManager(BaseUserManager):
 class Account(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField("이메일 주소", unique=True)
     username = models.CharField(
-        "유저명",
-        max_length=50,
+        "사용자명",
+        max_length=30,
         unique=True,
         null=False,
         validators=[
-            MinLengthValidator(5),
-            RegexValidator(regex=r"[a-zA-Z가-힣0-9_\-]+"),
+            MinLengthValidator(1),
         ],
         error_messages={
-            "unique": "이미 존재하는 유저명입니다.",
+            "unique": "이미 존재하는 사용자명입니다.",
         },
     )
     is_staff = models.BooleanField("관리자 여부", default=False)
@@ -101,7 +100,6 @@ class Account(AbstractBaseUser, PermissionsMixin):
 class UnauthenticatedUser(models.Model):
     email = models.EmailField(primary_key=True, unique=True)
     otp = models.TextField(
-        max_length=6,
         default=generate_otp,
         null=False,
         blank=False,
@@ -133,14 +131,14 @@ class UnauthenticatedUser(models.Model):
         send_mail(_("OTP 인증코드"), self.otp, from_email, [self.email], **kwargs)
 
     def verify_otp(self, otp: str) -> bool:
-        if (
-            timezone.now() - self.created_at < timedelta(minutes=settings.OTP_MINUTES)
-            and otp == self.otp
-        ):
+        is_valid_time = timezone.now() - self.created_at < timedelta(
+            seconds=settings.OTP_SECONDS
+        )
+        if is_valid_time and otp == self.otp:
             return True
         return False
 
     def otp_time_remaining(self) -> timedelta:
         return (
-            self.created_at + timedelta(minutes=settings.OTP_MINUTES) - timezone.now()
+            self.created_at + timedelta(seconds=settings.OTP_SECONDS) - timezone.now()
         )
