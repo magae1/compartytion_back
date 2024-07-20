@@ -97,7 +97,7 @@ class Account(AbstractBaseUser, PermissionsMixin):
         self.save()
 
 
-class UnauthenticatedUser(models.Model):
+class UnauthenticatedEmail(models.Model):
     email = models.EmailField(primary_key=True, unique=True)
     otp = models.TextField(
         default=generate_otp,

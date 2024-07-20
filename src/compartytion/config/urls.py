@@ -25,12 +25,11 @@ from rest_framework_simplejwt.views import (
 )
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-from ..users.views import (
-    AuthViewSet,
-)
+from ..users.views import AuthViewSet, AccountViewSet
 
 router = SimpleRouter()
 router.register(r"auth", AuthViewSet, basename="auth")
+router.register(r"accounts", AccountViewSet, basename="accounts")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
