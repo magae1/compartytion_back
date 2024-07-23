@@ -1,12 +1,15 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, mixins
 from rest_framework.response import Response
+from rest_framework.generics import get_object_or_404
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.parsers import MultiPartParser
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from drf_spectacular.utils import extend_schema
 
-from .models import Account
+from .models import Account, Profile
+from .permissions import IsOwnerOrReadOnly
 from .serializers import (
     AccountCreationSerializer,
     EmailSerializer,
@@ -14,6 +17,7 @@ from .serializers import (
     OTPRequestSerializer,
     AccountSerializer,
     PasswordChangeSerializer,
+    ProfileSerializer,
 )
 
 
@@ -83,3 +87,25 @@ class AccountViewSet(viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(status=status.HTTP_200_OK)
+
+
+class ProfileViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
+    serializer_class = ProfileSerializer
+    queryset = Profile.objects.all()
+    parser_classes = [MultiPartParser]
+    permission_classes = [IsOwnerOrReadOnly]
+
+    @action(methods=["GET", "PUT", "PATCH"], detail=False)
+    def me(self, request):
+        if request.user is None or request.user.is_anonymous:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        profile = get_object_or_404(self.get_queryset(), account=request.user)
+        if request.method == "GET":
+            serializer = self.get_serializer(profile)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer = self.get_serializer(
+            instance=profile, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(data=serializer.data, status=status.HTTP_200_OK)

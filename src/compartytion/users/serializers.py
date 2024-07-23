@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
 
-from .models import Account, UnauthenticatedEmail
+from .models import Account, UnauthenticatedEmail, Profile
 
 
 class AccountCreationSerializer(serializers.ModelSerializer):
@@ -123,3 +123,12 @@ class PasswordChangeSerializer(serializers.Serializer):
         self.validated_data["account"].update_password(
             self.validated_data["new_password"]
         )
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+    account = serializers.StringRelatedField(many=False)
+
+    class Meta:
+        model = Profile
+        fields = "__all__"
+        read_only_fields = ["account"]

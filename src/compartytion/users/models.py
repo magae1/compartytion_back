@@ -13,6 +13,8 @@ from django.core.validators import RegexValidator, MinLengthValidator
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from PIL import Image
+
 from ..utils import generate_otp
 
 
@@ -23,10 +25,11 @@ class AccountManager(BaseUserManager):
         if username is None:
             raise ValueError("사용자명은 반드시 입력해야 합니다.")
         email = self.normalize_email(email)
-        user = self.model(email=email, username=username, **kwargs)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
+        account = self.model(email=email, username=username, **kwargs)
+        account.set_password(password)
+        account.save(using=self._db)
+        Profile.objects.create(account=account)
+        return account
 
     def create_superuser(self, **kwargs):
         kwargs.setdefault("is_staff", True)
@@ -78,7 +81,7 @@ class Account(AbstractBaseUser, PermissionsMixin):
         verbose_name_plural = "계정들"
 
     def __str__(self):
-        return f"{self.email}"
+        return f"{self.username}"
 
     def clean(self):
         super().clean()
@@ -144,3 +147,19 @@ class UnauthenticatedEmail(models.Model):
         return (
             self.created_at + timedelta(seconds=settings.OTP_SECONDS) - timezone.now()
         )
+
+
+def avatar_directory_path(instance, filename):
+    return f"avatar/{instance.account.id}/{filename}"
+
+
+class Profile(models.Model):
+    account = models.OneToOneField(Account, on_delete=models.CASCADE, primary_key=True)
+    avatar = models.ImageField(
+        "프로필 사진", upload_to=avatar_directory_path, null=True
+    )
+    introduction = models.TextField("소개", blank=True)
+
+    class Meta:
+        verbose_name = "프로필"
+        verbose_name_plural = "프로필들"
