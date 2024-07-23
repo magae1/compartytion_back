@@ -6,6 +6,7 @@ from django.contrib.auth.models import (
     BaseUserManager,
     PermissionsMixin,
 )
+from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.conf import settings
 from django.core.mail import send_mail
 from django.core.validators import RegexValidator, MinLengthValidator
@@ -52,6 +53,7 @@ class Account(AbstractBaseUser, PermissionsMixin):
         null=False,
         validators=[
             MinLengthValidator(1),
+            UnicodeUsernameValidator(),
         ],
         error_messages={
             "unique": "이미 존재하는 사용자명입니다.",
