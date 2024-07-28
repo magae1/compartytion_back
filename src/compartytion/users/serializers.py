@@ -45,24 +45,41 @@ class EmailSerializer(serializers.Serializer):
 
 
 class EmailWithOTPSerializer(serializers.ModelSerializer):
+    account = serializers.HiddenField(default=serializers.CurrentUserDefault())
     email = serializers.EmailField(required=True)
 
     class Meta:
         model = UnauthenticatedEmail
-        fields = ["email", "otp", "is_verified"]
+        fields = ["email", "otp", "is_verified", "account"]
         read_only_fields = ["is_verified"]
         extra_kwargs = {"otp": {"write_only": True}}
 
+    def validate_otp(self, otp):
+        if not otp:
+            raise serializers.ValidationError("OTP가 제출되지 않았습니다.")
+        return otp
+
     def validate(self, data):
         try:
-            unauthenticated_user = UnauthenticatedEmail.objects.get(email=data["email"])
-            if unauthenticated_user.verify_otp(data["otp"]):
-                unauthenticated_user.is_verified = True
-                unauthenticated_user.save()
+            unauthenticated_email = UnauthenticatedEmail.objects.get(
+                email=data["email"]
+            )
+            if unauthenticated_email.verify_otp(data["otp"]):
+                unauthenticated_email.is_verified = True
+                unauthenticated_email.save()
                 return data
             raise serializers.ValidationError({"otp": "OTP 인증에 실패했습니다."})
         except UnauthenticatedEmail.DoesNotExist:
             raise serializers.ValidationError({"email": "찾을 수 없는 이메일입니다."})
+
+    def save(self, **kwargs):
+        UnauthenticatedEmail.objects.get(
+            email=self.validated_data["email"], is_verified=True
+        ).delete()
+        account = self.validated_data["account"]
+        account.email = self.validated_data["email"]
+        account.clean()
+        account.save()
 
 
 class OTPRequestSerializer(serializers.ModelSerializer):
@@ -75,7 +92,7 @@ class OTPRequestSerializer(serializers.ModelSerializer):
 
     def validate_email(self, email):
         if Account.objects.filter(email=email).exists():
-            raise serializers.ValidationError(_("이미 회원가입된 이메일입니다."))
+            raise serializers.ValidationError(_("이미 사용 중인 이메일입니다."))
         return email
 
     def to_representation(self, instance):
@@ -133,3 +150,9 @@ class AccountSerializer(serializers.ModelSerializer):
         model = Account
         fields = ["id", "email", "username", "last_password_changed", "profile"]
         read_only_fields = ["email", "last_password_changed"]
+
+
+class UsernameChangeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Account
+        fields = ["username"]

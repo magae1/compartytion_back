@@ -1,3 +1,5 @@
+from django.utils.translation import gettext_lazy as _
+
 from rest_framework import viewsets, status, mixins
 from rest_framework.response import Response
 from rest_framework.generics import get_object_or_404
@@ -18,6 +20,7 @@ from .serializers import (
     AccountSerializer,
     PasswordChangeSerializer,
     ProfileSerializer,
+    UsernameChangeSerializer,
 )
 
 
@@ -65,18 +68,13 @@ class AccountViewSet(viewsets.GenericViewSet):
     queryset = Account.objects.all()
     permission_classes = [IsAuthenticated]
 
-    @action(methods=["GET", "PUT", "PATCH"], detail=False)
+    @action(methods=["GET"], detail=False)
     def me(self, request):
-        if request.method == "GET":
-            serializer = AccountSerializer(request.user, context={"request": request})
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        serializer = self.get_serializer(request.user, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        serializer = AccountSerializer(request.user, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(
-        methods=["PUT", "PATCH"],
+        methods=["PATCH"],
         detail=False,
         serializer_class=PasswordChangeSerializer,
     )
@@ -86,7 +84,38 @@ class AccountViewSet(viewsets.GenericViewSet):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "비밀번호가 변경됐습니다."}, status=status.HTTP_200_OK
+        )
+
+    @action(methods=["PATCH"], detail=False, serializer_class=UsernameChangeSerializer)
+    def change_username(self, request):
+        serializer = UsernameChangeSerializer(
+            request.user, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {"detail": _("사용자명이 변경됐습니다.")}, status=status.HTTP_200_OK
+        )
+
+    @action(methods=["POST"], detail=False, serializer_class=OTPRequestSerializer)
+    def request_otp(self, request):
+        serializer = OTPRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(methods=["PATCH"], detail=False, serializer_class=EmailWithOTPSerializer)
+    def change_email(self, request):
+        serializer = EmailWithOTPSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {"detail": _("이메일이 변경됐습니다.")}, status=status.HTTP_200_OK
+        )
 
 
 class ProfileViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
@@ -108,4 +137,6 @@ class ProfileViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        return Response(
+            data={"detail": _("프로필이 변경됐습니다.")}, status=status.HTTP_200_OK
+        )
