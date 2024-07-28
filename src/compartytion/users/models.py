@@ -158,6 +158,12 @@ class Profile(models.Model):
     avatar = models.ImageField(
         "프로필 사진", upload_to=avatar_directory_path, null=True
     )
+    displayed_name = models.CharField(
+        validators=[UnicodeUsernameValidator()], blank=True, max_length=255
+    )
+    hidden_name = models.CharField(
+        validators=[UnicodeUsernameValidator()], blank=True, max_length=255
+    )
     introduction = models.TextField("소개", blank=True)
 
     class Meta:

@@ -68,7 +68,7 @@ class AccountViewSet(viewsets.GenericViewSet):
     @action(methods=["GET", "PUT", "PATCH"], detail=False)
     def me(self, request):
         if request.method == "GET":
-            serializer = AccountSerializer(request.user)
+            serializer = AccountSerializer(request.user, context={"request": request})
             return Response(serializer.data, status=status.HTTP_200_OK)
         serializer = self.get_serializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -95,7 +95,7 @@ class ProfileViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     parser_classes = [MultiPartParser]
     permission_classes = [IsOwnerOrReadOnly]
 
-    @action(methods=["GET", "PUT", "PATCH"], detail=False)
+    @action(methods=["GET", "PATCH"], detail=False)
     def me(self, request):
         if request.user is None or request.user.is_anonymous:
             return Response(status=status.HTTP_401_UNAUTHORIZED)

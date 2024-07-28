@@ -93,13 +93,6 @@ class OTPRequestSerializer(serializers.ModelSerializer):
         instance.save()
 
 
-class AccountSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Account
-        fields = ["id", "email", "username", "last_password_changed"]
-        read_only_fields = ["email", "last_password_changed"]
-
-
 class PasswordChangeSerializer(serializers.Serializer):
     account = serializers.HiddenField(default=serializers.CurrentUserDefault())
     password = serializers.CharField(required=True)
@@ -130,5 +123,13 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Profile
-        fields = "__all__"
-        read_only_fields = ["account"]
+        fields = ["account", "avatar", "introduction", "displayed_name", "hidden_name"]
+
+
+class AccountSerializer(serializers.ModelSerializer):
+    profile = ProfileSerializer(many=False, read_only=True)
+
+    class Meta:
+        model = Account
+        fields = ["id", "email", "username", "last_password_changed", "profile"]
+        read_only_fields = ["email", "last_password_changed"]
