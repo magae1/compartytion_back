@@ -44,7 +44,9 @@ class AuthViewSet(viewsets.GenericViewSet):
 
     @action(methods=["POST"], detail=False, serializer_class=EmailWithOTPSerializer)
     def verify_otp(self, request):
-        serializer = EmailWithOTPSerializer(data=request.data)
+        serializer = EmailWithOTPSerializer(
+            data=request.data, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -128,10 +130,12 @@ class ProfileViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     def me(self, request):
         if request.user is None or request.user.is_anonymous:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
+
         profile = get_object_or_404(self.get_queryset(), account=request.user)
         if request.method == "GET":
             serializer = self.get_serializer(profile)
             return Response(serializer.data, status=status.HTTP_200_OK)
+
         serializer = self.get_serializer(
             instance=profile, data=request.data, partial=True
         )

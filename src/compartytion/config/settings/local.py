@@ -12,6 +12,8 @@ INTERNAL_IPS = ["127.0.0.1"]
 
 MIDDLEWARE = ["debug_toolbar.middleware.DebugToolbarMiddleware"] + MIDDLEWARE
 
+MEDIA_ROOT = os.path.join(BASE_DIR.parent.parent, "media")
+
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 CORS_ALLOW_ALL_ORIGINS = True

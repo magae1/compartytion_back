@@ -1,6 +1,9 @@
+from io import BytesIO
+from django.conf import settings
+from django.core.files import File
 from django.utils.translation import gettext_lazy as _
-
 from rest_framework import serializers
+from PIL import Image, ImageOps
 
 from .models import Account, UnauthenticatedEmail, Profile
 
@@ -141,6 +144,24 @@ class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = ["account", "avatar", "introduction", "displayed_name", "hidden_name"]
+
+    def update(self, instance, validated_data):
+        avatar = validated_data.pop("avatar", None)
+        if avatar:
+            with Image.open(avatar) as img:
+                new_img = ImageOps.fit(img, settings.PROFILE_AVATAR_SIZE)
+
+                if avatar.name.lower().endswith(".jpg") or avatar.name.lower().endswith(
+                    ".jpeg"
+                ):
+                    format = "JPEG"
+                elif avatar.name.lower().endswith(".png"):
+                    format = "PNG"
+
+                output = BytesIO()
+                new_img.save(output, format=format, optimize=True)
+                instance.avatar = File(output, name=avatar.name)
+        return super().update(instance, validated_data)
 
 
 class AccountSerializer(serializers.ModelSerializer):

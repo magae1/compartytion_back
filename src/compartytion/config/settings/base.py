@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "corsheaders",
     "compartytion.users",
+    "django_cleanup.apps.CleanupConfig",
 ]
 
 MIDDLEWARE = [
@@ -168,3 +169,5 @@ SPECTACULAR_SETTINGS = {
 }
 
 OTP_SECONDS = 5 * 60  # 5 minutes
+
+PROFILE_AVATAR_SIZE = (200, 200)

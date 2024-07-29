@@ -13,8 +13,6 @@ from django.core.validators import RegexValidator, MinLengthValidator
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from PIL import Image
-
 from ..utils import generate_otp
 
 
@@ -155,16 +153,17 @@ def avatar_directory_path(instance, filename):
 
 class Profile(models.Model):
     account = models.OneToOneField(Account, on_delete=models.CASCADE, primary_key=True)
-    avatar = models.ImageField(
-        "프로필 사진", upload_to=avatar_directory_path, null=True
-    )
+    avatar = models.ImageField("아바타", upload_to=avatar_directory_path, null=True)
     displayed_name = models.CharField(
-        validators=[UnicodeUsernameValidator()], blank=True, max_length=255
+        "공개 이름", validators=[UnicodeUsernameValidator()], blank=True, max_length=30
     )
     hidden_name = models.CharField(
-        validators=[UnicodeUsernameValidator()], blank=True, max_length=255
+        "비공개 이름",
+        validators=[UnicodeUsernameValidator()],
+        blank=True,
+        max_length=30,
     )
-    introduction = models.TextField("소개", blank=True)
+    introduction = models.TextField("소개", blank=True, max_length=255)
 
     class Meta:
         verbose_name = "프로필"
