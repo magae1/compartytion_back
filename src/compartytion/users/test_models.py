@@ -94,5 +94,8 @@ class ProfileTestCase(TestCase):
         )
         account_id = account.id
         account.delete()
-        with self.assertRaises(Profile.DoesNotExist):
+        try:
             Profile.objects.get(account=account_id)
+            self.assertTrue(False)
+        except Profile.DoesNotExist:
+            self.assertTrue(True)
