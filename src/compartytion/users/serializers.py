@@ -2,6 +2,7 @@ from io import BytesIO
 from django.conf import settings
 from django.core.files import File
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
 from rest_framework import serializers
 from PIL import Image, ImageOps
 
@@ -55,19 +56,14 @@ class EmailWithOTPSerializer(serializers.ModelSerializer):
         model = UnauthenticatedEmail
         fields = ["email", "otp", "is_verified", "account"]
         read_only_fields = ["is_verified"]
-        extra_kwargs = {"otp": {"write_only": True}}
-
-    def validate_otp(self, otp):
-        if not otp:
-            raise serializers.ValidationError("OTP가 제출되지 않았습니다.")
-        return otp
+        extra_kwargs = {"otp": {"write_only": True, "required": True}}
 
     def validate(self, data):
         try:
             unauthenticated_email = UnauthenticatedEmail.objects.get(
                 email=data["email"]
             )
-            if unauthenticated_email.verify_otp(data["otp"]):
+            if unauthenticated_email.verify_otp(data["otp"], timezone.now()):
                 unauthenticated_email.is_verified = True
                 unauthenticated_email.save()
                 return data

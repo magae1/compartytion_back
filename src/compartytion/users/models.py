@@ -133,8 +133,8 @@ class UnauthenticatedEmail(models.Model):
     def email_user_with_otp(self, from_email=None, **kwargs):
         send_mail(_("OTP 인증코드"), self.otp, from_email, [self.email], **kwargs)
 
-    def verify_otp(self, otp: str) -> bool:
-        is_valid_time = timezone.now() - self.created_at < timedelta(
+    def verify_otp(self, otp: str, current_time) -> bool:
+        is_valid_time = current_time - self.created_at < timedelta(
             seconds=settings.OTP_SECONDS
         )
         if is_valid_time and otp == self.otp:
