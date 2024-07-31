@@ -1,7 +1,5 @@
-.env
-
+/src/.env
+/src/media
 /src/compartytion/db.sqlite3
 
 */.pyc
-
-/media
