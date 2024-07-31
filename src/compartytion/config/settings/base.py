@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "corsheaders",
     "compartytion.users",
-    "compartytion.playground",
+    "compartytion.competitions",
     "django_cleanup.apps.CleanupConfig",
 ]
 
