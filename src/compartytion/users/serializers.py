@@ -173,3 +173,11 @@ class UsernameChangeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
         fields = ["username"]
+
+
+class SimpleProfileSerializer(serializers.ModelSerializer):
+    account = serializers.StringRelatedField(many=False)
+
+    class Meta:
+        model = Profile
+        fields = ["account", "avatar"]

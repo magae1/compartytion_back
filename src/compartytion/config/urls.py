@@ -21,14 +21,17 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import SimpleRouter
 from rest_framework_simplejwt.views import TokenRefreshView
+from debug_toolbar.toolbar import debug_toolbar_urls
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from ..users.views import AuthViewSet, AccountViewSet, ProfileViewSet
+from ..competitions.views import CompetitionViewSet
 
 router = SimpleRouter()
 router.register(r"auth", AuthViewSet, basename="auth")
 router.register(r"accounts", AccountViewSet, basename="accounts")
 router.register(r"profiles", ProfileViewSet, basename="profiles")
+router.register(r"competitions", CompetitionViewSet, basename="competitions")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -38,11 +41,10 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += [
-        path("__debug__/", include("debug_toolbar.urls")),
         path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
         path(
             "api/schema/swagger-ui/",
             SpectacularSwaggerView.as_view(url_name="schema"),
             name="swagger-ui",
         ),
-    ]
+    ] + debug_toolbar_urls()

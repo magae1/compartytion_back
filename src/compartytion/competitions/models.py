@@ -36,7 +36,7 @@ class Competition(models.Model):
     )
     managers = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        through="Manager",
+        through="Management",
         verbose_name=_("관리자들"),
         related_name="managers",
     )
@@ -56,7 +56,7 @@ class Competition(models.Model):
         get_latest_by = "created_at"
 
 
-class Manager(models.Model):
+class Management(models.Model):
     account = models.ForeignKey(
         settings.AUTH_USER_MODEL, verbose_name=_("계정"), on_delete=models.CASCADE
     )
