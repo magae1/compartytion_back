@@ -18,11 +18,10 @@ class Rule(models.Model):
 
 class Competition(models.Model):
     class StatusChoices(models.IntegerChoices):
-        PREPARE = 0, _("준비중")
-        RECRUIT = 1, _("모집중")
-        READY = 2, _("모집 마감")
-        PLAY = 3, _("진행중")
-        DONE = 4, _("완료")
+        RECRUIT = 0, _("모집중")
+        READY = 1, _("모집 마감")
+        PLAY = 2, _("진행중")
+        DONE = 3, _("완료")
 
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     title = models.CharField(_("대회명"), max_length=255)
@@ -41,10 +40,13 @@ class Competition(models.Model):
         related_name="managers",
     )
     status = models.PositiveSmallIntegerField(
-        _("상태"), default=StatusChoices.PREPARE, choices=StatusChoices
+        _("상태"), default=StatusChoices.RECRUIT, choices=StatusChoices
     )
     rule = models.ForeignKey(
-        Rule, verbose_name=_("규칙"), null=True, on_delete=models.SET_NULL
+        Rule, verbose_name=_("규칙"), null=True, on_delete=models.PROTECT
+    )
+    introduction = models.TextField(
+        _("대회 소개"), null=True, blank=True, max_length=500
     )
     tournament = models.JSONField(_("토너먼트"), default=dict, null=True)
     content = models.JSONField(_("내용"), default=dict, null=True)
@@ -68,6 +70,7 @@ class Management(models.Model):
     handle_status = models.BooleanField(_("상태 변경 가능 여부"), default=False)
     handle_applicants = models.BooleanField(_("신청자 관리 가능 여부"), default=False)
     handle_participants = models.BooleanField(_("참가자 관리 가능 여부"), default=False)
+    accepted = models.BooleanField(_("승락 여부"), default=False)
 
     class Meta:
         verbose_name = _("대회 관리자")
@@ -117,7 +120,7 @@ class Participant(models.Model):
     password = models.CharField(_("비밀번호"), max_length=255)
     displayed_name = models.CharField(_("공개 이름"), max_length=30)
     hidden_name = models.CharField(_("비공개 이름"), max_length=30)
-    introduction = models.TextField(_("소개글"), null=True, blank=True)
+    introduction = models.TextField(_("소개글"), null=True, blank=True, max_length=255)
     joined_at = models.DateTimeField(_("참가일"), auto_now_add=True, editable=False)
     last_login_at = models.DateTimeField(_("최근 접속일"), auto_now_add=True)
 
@@ -146,7 +149,7 @@ class Applicant(models.Model):
     email = models.EmailField(_("이메일"), null=True)
     displayed_name = models.CharField(_("공개 이름"), max_length=30)
     hidden_name = models.CharField(_("비공개 이름"), max_length=30)
-    introduction = models.TextField(_("소개글"), null=True, blank=True)
+    introduction = models.TextField(_("소개글"), null=True, blank=True, max_length=255)
     applied_at = models.DateTimeField(_("신청일"), auto_now_add=True, editable=False)
 
     class Meta:

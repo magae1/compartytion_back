@@ -15,12 +15,16 @@ from .serializers import (
 from .permissions import IsCreator
 
 
-class CompetitionViewSet(
-    viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.DestroyModelMixin
-):
+class CompetitionViewSet(viewsets.GenericViewSet, mixins.DestroyModelMixin):
     queryset = Competition.objects.all()
     serializer_class = CompetitionSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        if self.action == "retrieve":
+            permission_classes = [IsCreator]
+        else:
+            permission_classes = [IsAuthenticatedOrReadOnly]
+        return [permission() for permission in permission_classes]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -33,7 +37,14 @@ class CompetitionViewSet(
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(
+            {"detail": _("새 대회가 생성됐습니다.")}, status=status.HTTP_201_CREATED
+        )
+
+    def retrieve(self, request, pk=None):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, context={"request": request})
+        return Response(serializer.data)
 
     def partial_update(self, request, pk=None):
         competition = self.get_object()
@@ -45,7 +56,9 @@ class CompetitionViewSet(
     @action(methods=["GET"], detail=True, serializer_class=SimpleCompetitionSerializer)
     def preview(self, request, pk=None):
         competition = self.get_object()
-        serializer = SimpleCompetitionSerializer(competition)
+        serializer = SimpleCompetitionSerializer(
+            competition, context={"request": request}
+        )
         return Response(serializer.data)
 
     @action(
@@ -58,9 +71,13 @@ class CompetitionViewSet(
         my_competitions = self.queryset.filter(creator=request.user)
         page = self.paginate_queryset(my_competitions)
         if page is not None:
-            serializer = SimpleCompetitionSerializer(page, many=True)
+            serializer = SimpleCompetitionSerializer(
+                page, many=True, context={"request": request}
+            )
             return self.get_paginated_response(serializer.data)
-        serializer = SimpleCompetitionSerializer(my_competitions, many=True)
+        serializer = SimpleCompetitionSerializer(
+            my_competitions, many=True, context={"request": request}
+        )
         return Response(serializer.data)
 
     @action(

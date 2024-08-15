@@ -10,6 +10,7 @@ class RuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rule
         fields = ["next_rule", "content", "added_at"]
+        read_only_fields = ["next_rule", "added_at"]
 
 
 class ManagementSerializer(serializers.ModelSerializer):
@@ -46,10 +47,26 @@ class ManagementSerializer(serializers.ModelSerializer):
 
 class CompetitionCreateSerializer(serializers.ModelSerializer):
     creator = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    rule = RuleSerializer(many=False)
 
     class Meta:
         model = Competition
-        fields = ["id", "title", "creator", "is_team_game"]
+        fields = [
+            "id",
+            "title",
+            "created_at",
+            "creator",
+            "rule",
+            "introduction",
+            "tournament",
+            "content",
+            "is_team_game",
+        ]
+
+    def create(self, validated_data):
+        rule_data = validated_data.pop("rule")
+        rule_obj = Rule.objects.create(**rule_data)
+        return Competition.objects.create(**validated_data, rule=rule_obj)
 
 
 class SimpleCompetitionSerializer(serializers.ModelSerializer):
@@ -57,13 +74,22 @@ class SimpleCompetitionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Competition
-        fields = ["id", "title", "created_at", "creator", "status"]
+        fields = [
+            "id",
+            "title",
+            "created_at",
+            "creator",
+            "status",
+            "is_team_game",
+            "introduction",
+        ]
+        read_only_fields = ["is_team_game"]
 
     @extend_schema_field(SimpleProfileSerializer)
     def get_creator(self, obj):
         try:
             profile = Profile.objects.get(account=obj.creator)
-            return SimpleProfileSerializer(profile).data
+            return SimpleProfileSerializer(profile, context=self.context).data
         except Profile.DoesNotExist:
             return None
 
@@ -101,4 +127,4 @@ class CompetitionSerializer(SimpleCompetitionSerializer):
         profiles = set()
         for m in obj.managers.all().select_related("profile"):
             profiles.add(m.profile)
-        return SimpleProfileSerializer(profiles, many=True).data
+        return SimpleProfileSerializer(profiles, many=True, context=self.context).data
