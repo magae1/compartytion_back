@@ -68,7 +68,9 @@ class CompetitionViewSet(viewsets.GenericViewSet, mixins.DestroyModelMixin):
         permission_classes=[IsAuthenticated],
     )
     def me(self, request):
-        my_competitions = self.queryset.filter(creator=request.user)
+        my_competitions = self.queryset.filter(creator=request.user).order_by(
+            "-created_at"
+        )
         page = self.paginate_queryset(my_competitions)
         if page is not None:
             serializer = SimpleCompetitionSerializer(
