@@ -4,18 +4,6 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 
-class Rule(models.Model):
-    next_rule = models.ForeignKey(
-        "self", verbose_name=_("추가 규칙"), null=True, on_delete=models.SET_NULL
-    )
-    content = models.JSONField(_("내용"), default=dict)
-    added_at = models.DateTimeField(_("갱신일"), auto_now_add=True, editable=False)
-
-    class Meta:
-        verbose_name = _("규칙")
-        verbose_name_plural = _("규칙들")
-
-
 class Competition(models.Model):
     class StatusChoices(models.IntegerChoices):
         RECRUIT = 0, _("모집중")
@@ -42,9 +30,6 @@ class Competition(models.Model):
     status = models.PositiveSmallIntegerField(
         _("상태"), default=StatusChoices.RECRUIT, choices=StatusChoices
     )
-    rule = models.ForeignKey(
-        Rule, verbose_name=_("규칙"), null=True, on_delete=models.PROTECT
-    )
     introduction = models.TextField(
         _("대회 소개"), null=True, blank=True, max_length=500
     )
@@ -56,6 +41,34 @@ class Competition(models.Model):
         verbose_name = _("대회")
         verbose_name_plural = _("대회들")
         get_latest_by = "created_at"
+
+
+class RuleManager(models.Manager):
+    def get_latest(self, competition_id: str):
+        return self.raw(
+            "SELECT * FROM competitions_rule AS r1 WHERE r1.competition_id = %s AND r1.depth = (SELECT MAX(r2.depth) FROM competitions_rule AS r2  WHERE r1.order = r2.order) ORDER BY r1.order",
+            [competition_id],
+        )
+
+
+class Rule(models.Model):
+    content = models.CharField(_("내용"))
+    order = models.PositiveSmallIntegerField(_("순서"))
+    depth = models.PositiveSmallIntegerField(_("깊이"))
+    competition = models.ForeignKey(
+        Competition,
+        verbose_name=_("대회"),
+        on_delete=models.CASCADE,
+        related_name="rules",
+    )
+    added_at = models.DateTimeField(_("갱신일"), editable=False)
+
+    objects = RuleManager()
+
+    class Meta:
+        verbose_name = _("규칙")
+        verbose_name_plural = _("규칙들")
+        ordering = ["order"]
 
 
 class Management(models.Model):

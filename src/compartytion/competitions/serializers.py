@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
@@ -6,11 +7,19 @@ from ..users.models import Profile, Account
 from ..users.serializers import SimpleProfileSerializer
 
 
+class RuleListSerializer(serializers.ListSerializer):
+    def create(self, validated_data):
+        rules = [Rule(**item) for item in validated_data]
+        return Rule.objects.bulk_create(rules)
+
+
 class RuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rule
-        fields = ["next_rule", "content", "added_at"]
-        read_only_fields = ["next_rule", "added_at"]
+        fields = ["content", "added_at", "depth", "order"]
+        read_only_fields = ["added_at", "depth"]
+        extra_kwargs = {"order": {"required": True}}
+        list_serializer_class = RuleListSerializer
 
 
 class ManagementSerializer(serializers.ModelSerializer):
@@ -47,7 +56,8 @@ class ManagementSerializer(serializers.ModelSerializer):
 
 class CompetitionCreateSerializer(serializers.ModelSerializer):
     creator = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    rule = RuleSerializer(many=False)
+    rules = serializers.ListField(child=serializers.CharField())
+    managers = serializers.ListField(child=serializers.CharField())
 
     class Meta:
         model = Competition
@@ -56,17 +66,49 @@ class CompetitionCreateSerializer(serializers.ModelSerializer):
             "title",
             "created_at",
             "creator",
-            "rule",
+            "rules",
             "introduction",
             "tournament",
             "content",
             "is_team_game",
+            "managers",
         ]
 
     def create(self, validated_data):
-        rule_data = validated_data.pop("rule")
-        rule_obj = Rule.objects.create(**rule_data)
-        return Competition.objects.create(**validated_data, rule=rule_obj)
+        rule_data = validated_data.pop("rules")
+        managers_data = validated_data.pop("managers")
+        creator_username = self.validated_data["creator"].username
+        while creator_username in managers_data:
+            managers_data.remove(creator_username)
+
+        competition = Competition.objects.create(**validated_data)
+
+        if managers_data is not None:
+            account_objs = Account.objects.filter(username__in=managers_data).values(
+                "id"
+            )
+            for i in account_objs:
+                print(i["id"])
+            Management.objects.bulk_create(
+                [
+                    Management(account_id=a["id"], competition=competition)
+                    for a in account_objs
+                ]
+            )
+
+        now = timezone.now()
+        rules = [
+            Rule(
+                order=i,
+                depth=0,
+                added_at=now,
+                competition=competition,
+                content=rule_content,
+            )
+            for i, rule_content in enumerate(rule_data)
+        ]
+        Rule.objects.bulk_create(rules)
+        return competition
 
 
 class SimpleCompetitionSerializer(serializers.ModelSerializer):
@@ -103,8 +145,8 @@ class SimpleCompetitionSerializer(serializers.ModelSerializer):
 
 
 class CompetitionSerializer(SimpleCompetitionSerializer):
-    rule = RuleSerializer(many=False)
-    managers = serializers.SerializerMethodField()
+    num_of_participants = serializers.SerializerMethodField()
+    num_of_applicants = serializers.SerializerMethodField()
 
     class Meta:
         model = Competition
@@ -113,18 +155,16 @@ class CompetitionSerializer(SimpleCompetitionSerializer):
             "title",
             "created_at",
             "creator",
-            "managers",
             "status",
-            "rule",
-            "tournament",
             "content",
             "is_team_game",
+            "num_of_participants",
+            "num_of_applicants",
         ]
-        read_only_fields = ["creator", "is_team_game"]
+        read_only_fields = ["creator", "is_team_game", "status"]
 
-    @extend_schema_field(SimpleProfileSerializer)
-    def get_managers(self, obj):
-        profiles = set()
-        for m in obj.managers.all().select_related("profile"):
-            profiles.add(m.profile)
-        return SimpleProfileSerializer(profiles, many=True, context=self.context).data
+    def get_num_of_participants(self, obj):
+        return obj.participant_set.count()
+
+    def get_num_of_applicants(self, obj):
+        return obj.applicant_set.count()

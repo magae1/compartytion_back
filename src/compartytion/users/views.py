@@ -19,6 +19,7 @@ from .serializers import (
     PasswordChangeSerializer,
     ProfileSerializer,
     UsernameChangeSerializer,
+    SimpleProfileSerializer,
 )
 
 
@@ -118,11 +119,22 @@ class AccountViewSet(viewsets.GenericViewSet):
         )
 
 
-class ProfileViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
+class ProfileViewSet(viewsets.GenericViewSet, mixins.ListModelMixin):
     serializer_class = ProfileSerializer
     queryset = Profile.objects.all()
     parser_classes = [MultiPartParser]
-    permission_classes = [IsOwnerOrReadOnly]
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return SimpleProfileSerializer
+        return self.serializer_class
+
+    def get_permissions(self):
+        if self.action == "list":
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsOwnerOrReadOnly]
+        return [permission() for permission in permission_classes]
 
     @action(methods=["GET", "PATCH"], detail=False)
     def me(self, request):

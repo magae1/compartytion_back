@@ -42,8 +42,8 @@ class CompetitionViewSet(viewsets.GenericViewSet, mixins.DestroyModelMixin):
         )
 
     def retrieve(self, request, pk=None):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, context={"request": request})
+        competition = self.get_object()
+        serializer = self.get_serializer(competition, context={"request": request})
         return Response(serializer.data)
 
     def partial_update(self, request, pk=None):
