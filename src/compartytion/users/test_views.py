@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import AccessToken
 
-from .models import Account, UnauthenticatedEmail, Profile
+from .models import Account, UnauthenticatedEmail
 
 
 class AuthViewSetTestCase(APITestCase):
@@ -181,22 +181,6 @@ class AccountViewSetTestCase(APITestCase):
         account = Account.objects.get(id=self.account.id)
         self.assertTrue(account.check_password("new-password"))
 
-    def test_change_username_with_unauthenticated_user(self):
-        url = self.URL_PREFIX + "/change_username/"
-        res = self.client.patch(url, {"username": "new-username"})
-        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_change_username_with_authenticated_user(self):
-        url = self.URL_PREFIX + "/change_username/"
-        res = self.client.patch(
-            url,
-            {"username": "new-username"},
-            headers={"Authorization": f"Bearer {self.token}"},
-        )
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        account = Account.objects.get(id=self.account.id)
-        self.assertEqual(account.username, "new-username")
-
     def test_request_otp_with_unauthenticated_user(self):
         url = self.URL_PREFIX + "/request_otp/"
         res = self.client.post(url, {"email": "new@example.com"})
@@ -239,6 +223,27 @@ class AccountViewSetTestCase(APITestCase):
         account = Account.objects.get(id=self.account.id)
         self.assertEqual(account.email, "new@example.com")
 
+    def test_change_profile_with_authenticated_user(self):
+        Account.objects.create_user(
+            email="user2@example.com", password="password", username="test-user2"
+        )
+        url = self.URL_PREFIX + "/change_profile/"
+        authorization = f"Bearer {self.token}"
+        res = self.client.patch(
+            url,
+            {"username": "test-user2"},
+            headers={"Authorization": authorization},
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        res = self.client.patch(
+            url,
+            {"username": "test-user123"},
+            headers={"Authorization": authorization},
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
 
 class ProfileViewSetTestCase(APITestCase):
     def setUp(self):
@@ -252,23 +257,9 @@ class ProfileViewSetTestCase(APITestCase):
         url = self.URL_PREFIX + "/me/"
         res = self.client.get(url)
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
-        res = self.client.patch(url)
-        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_me_with_authenticated_user(self):
         url = self.URL_PREFIX + "/me/"
         authorization = f"Bearer {self.token}"
         res = self.client.get(url, headers={"Authorization": authorization})
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data["account"], self.account.username)
-
-        new_displayed_name = "u-can-c-me"
-        res = self.client.patch(
-            url,
-            {"displayed_name": new_displayed_name},
-            headers={"Authorization": authorization},
-            format="multipart",
-        )
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        profile = Profile.objects.get(account_id=self.account.id)
-        self.assertEqual(profile.displayed_name, new_displayed_name)

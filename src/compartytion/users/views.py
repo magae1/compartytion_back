@@ -18,7 +18,6 @@ from .serializers import (
     AccountSerializer,
     PasswordChangeSerializer,
     ProfileSerializer,
-    UsernameChangeSerializer,
     SimpleProfileSerializer,
 )
 
@@ -61,7 +60,7 @@ class AuthViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(_("회원가입에 성공했습니다."), status=status.HTTP_200_OK)
 
 
 class AccountViewSet(viewsets.GenericViewSet):
@@ -86,18 +85,22 @@ class AccountViewSet(viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(
-            {"detail": "비밀번호가 변경됐습니다."}, status=status.HTTP_200_OK
+            {"detail": _("비밀번호가 변경됐습니다.")}, status=status.HTTP_200_OK
         )
 
-    @action(methods=["PATCH"], detail=False, serializer_class=UsernameChangeSerializer)
-    def change_username(self, request):
-        serializer = UsernameChangeSerializer(
-            request.user, data=request.data, partial=True
-        )
+    @action(
+        methods=["PATCH"],
+        detail=False,
+        parser_classes=[MultiPartParser],
+        serializer_class=ProfileSerializer,
+    )
+    def change_profile(self, request):
+        profile = request.user.profile
+        serializer = ProfileSerializer(instance=profile, data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(
-            {"detail": _("사용자명이 변경됐습니다.")}, status=status.HTTP_200_OK
+            {"detail": _("프로필이 변경됐습니다.")}, status=status.HTTP_200_OK
         )
 
     @action(methods=["POST"], detail=False, serializer_class=OTPRequestSerializer)
@@ -122,7 +125,6 @@ class AccountViewSet(viewsets.GenericViewSet):
 class ProfileViewSet(viewsets.GenericViewSet, mixins.ListModelMixin):
     serializer_class = ProfileSerializer
     queryset = Profile.objects.all()
-    parser_classes = [MultiPartParser]
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -136,21 +138,11 @@ class ProfileViewSet(viewsets.GenericViewSet, mixins.ListModelMixin):
             permission_classes = [IsOwnerOrReadOnly]
         return [permission() for permission in permission_classes]
 
-    @action(methods=["GET", "PATCH"], detail=False)
+    @action(methods=["GET"], detail=False)
     def me(self, request):
         if request.user is None or request.user.is_anonymous:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         profile = get_object_or_404(self.get_queryset(), account=request.user)
-        if request.method == "GET":
-            serializer = self.get_serializer(profile)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-
-        serializer = self.get_serializer(
-            instance=profile, data=request.data, partial=True
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(
-            data={"detail": _("프로필이 변경됐습니다.")}, status=status.HTTP_200_OK
-        )
+        serializer = self.get_serializer(profile)
+        return Response(serializer.data, status=status.HTTP_200_OK)

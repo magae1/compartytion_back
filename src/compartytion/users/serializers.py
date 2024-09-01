@@ -1,8 +1,11 @@
 from io import BytesIO
 from django.conf import settings
+from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.files import File
+from django.core.validators import MinLengthValidator
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+
 from rest_framework import serializers
 from PIL import Image, ImageOps
 
@@ -10,10 +13,19 @@ from .models import Account, UnauthenticatedEmail, Profile
 
 
 class AccountCreationSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(
+        max_length=30, validators=[MinLengthValidator(1), UnicodeUsernameValidator()]
+    )
+
     class Meta:
         model = Account
         fields = ["id", "email", "username", "password", "last_password_changed"]
         extra_kwargs = {"password": {"write_only": True}}
+
+    def validate_username(self, username):
+        if Profile.objects.filter(username__iexact=username).exists():
+            raise serializers.ValidationError(_("이미 존재하는 사용자명입니다."))
+        return username
 
     def validate_email(self, email):
         if not UnauthenticatedEmail.objects.filter(
@@ -135,11 +147,9 @@ class PasswordChangeSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    account = serializers.StringRelatedField(many=False)
-
     class Meta:
         model = Profile
-        fields = ["account", "avatar", "introduction", "displayed_name", "hidden_name"]
+        fields = ["username", "avatar", "introduction", "displayed_name", "hidden_name"]
 
     def update(self, instance, validated_data):
         avatar = validated_data.pop("avatar", None)
@@ -165,19 +175,11 @@ class AccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Account
-        fields = ["id", "email", "username", "last_password_changed", "profile"]
+        fields = ["id", "email", "last_password_changed", "profile"]
         read_only_fields = ["email", "last_password_changed"]
 
 
-class UsernameChangeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Account
-        fields = ["username"]
-
-
 class SimpleProfileSerializer(serializers.ModelSerializer):
-    account = serializers.StringRelatedField(many=False)
-
     class Meta:
         model = Profile
-        fields = ["account", "avatar"]
+        fields = ["username", "avatar"]

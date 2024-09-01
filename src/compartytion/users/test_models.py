@@ -25,7 +25,7 @@ class AccountTestCase(TestCase):
     def test_email(self):
         account = Account.objects.get(email="hello@example.com")
         subject = "hi!"
-        message = f"welcome! {account.username}"
+        message = f"welcome! {account.email}"
         account.email_user(subject, message, fail_silently=False)
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].subject, subject)

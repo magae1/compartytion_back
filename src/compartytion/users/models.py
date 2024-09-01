@@ -22,10 +22,10 @@ class AccountManager(BaseUserManager):
         if username is None:
             raise ValueError("사용자명은 반드시 입력해야 합니다.")
         email = self.normalize_email(email)
-        account = self.model(email=email, username=username, **kwargs)
+        account = self.model(email=email, **kwargs)
         account.set_password(password)
         account.save(using=self._db)
-        Profile.objects.create(account=account)
+        Profile.objects.create(account=account, username=username)
         return account
 
     def create_superuser(self, **kwargs):
@@ -46,19 +46,6 @@ class AccountManager(BaseUserManager):
 
 class Account(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField("이메일 주소", unique=True)
-    username = models.CharField(
-        "사용자명",
-        max_length=30,
-        unique=True,
-        null=False,
-        validators=[
-            MinLengthValidator(1),
-            UnicodeUsernameValidator(),
-        ],
-        error_messages={
-            "unique": "이미 존재하는 사용자명입니다.",
-        },
-    )
     is_staff = models.BooleanField("관리자 여부", default=False)
     is_active = models.BooleanField("활성 여부", default=True)
     date_joined = models.DateTimeField(
@@ -69,16 +56,12 @@ class Account(AbstractBaseUser, PermissionsMixin):
     )
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["username"]
 
     objects = AccountManager()
 
     class Meta:
         verbose_name = "계정"
         verbose_name_plural = "계정들"
-
-    def __str__(self):
-        return f"{self.username}"
 
     def clean(self):
         super().clean()
@@ -152,6 +135,19 @@ def avatar_directory_path(instance, filename):
 
 class Profile(models.Model):
     account = models.OneToOneField(Account, on_delete=models.CASCADE, primary_key=True)
+    username = models.CharField(
+        "사용자명",
+        max_length=30,
+        unique=True,
+        null=False,
+        validators=[
+            MinLengthValidator(1),
+            UnicodeUsernameValidator(),
+        ],
+        error_messages={
+            "unique": "이미 존재하는 사용자명입니다.",
+        },
+    )
     avatar = models.ImageField("아바타", upload_to=avatar_directory_path, null=True)
     displayed_name = models.CharField(
         "공개 이름", validators=[UnicodeUsernameValidator()], blank=True, max_length=30
