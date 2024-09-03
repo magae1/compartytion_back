@@ -9,7 +9,6 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from drf_spectacular.utils import extend_schema
 
 from .models import Account, Profile
-from .permissions import IsOwnerOrReadOnly
 from .serializers import (
     AccountCreationSerializer,
     EmailSerializer,
@@ -60,7 +59,7 @@ class AuthViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(_("회원가입에 성공했습니다."), status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class AccountViewSet(viewsets.GenericViewSet):
@@ -122,27 +121,19 @@ class AccountViewSet(viewsets.GenericViewSet):
         )
 
 
-class ProfileViewSet(viewsets.GenericViewSet, mixins.ListModelMixin):
+class ProfileViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     serializer_class = ProfileSerializer
     queryset = Profile.objects.all()
+    permission_classes = [IsAuthenticated]
+    lookup_field = "username"
 
     def get_serializer_class(self):
-        if self.action == "list":
+        if self.action == "retrieve":
             return SimpleProfileSerializer
         return self.serializer_class
 
-    def get_permissions(self):
-        if self.action == "list":
-            permission_classes = [IsAuthenticated]
-        else:
-            permission_classes = [IsOwnerOrReadOnly]
-        return [permission() for permission in permission_classes]
-
     @action(methods=["GET"], detail=False)
     def me(self, request):
-        if request.user is None or request.user.is_anonymous:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-
         profile = get_object_or_404(self.get_queryset(), account=request.user)
         serializer = self.get_serializer(profile)
         return Response(serializer.data, status=status.HTTP_200_OK)

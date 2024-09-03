@@ -14,12 +14,14 @@ from .models import Account, UnauthenticatedEmail, Profile
 
 class AccountCreationSerializer(serializers.ModelSerializer):
     username = serializers.CharField(
-        max_length=30, validators=[MinLengthValidator(1), UnicodeUsernameValidator()]
+        max_length=30,
+        validators=[MinLengthValidator(1), UnicodeUsernameValidator()],
+        write_only=True,
     )
 
     class Meta:
         model = Account
-        fields = ["id", "email", "username", "password", "last_password_changed"]
+        fields = ["id", "email", "username", "password"]
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate_username(self, username):
