@@ -99,7 +99,7 @@ class AccountViewSet(viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(
-            {"detail": _("프로필이 변경됐습니다.")}, status=status.HTTP_200_OK
+            {"detail": _("변경사항이 적용됐습니다.")}, status=status.HTTP_200_OK
         )
 
     @action(methods=["POST"], detail=False, serializer_class=OTPRequestSerializer)
@@ -122,18 +122,13 @@ class AccountViewSet(viewsets.GenericViewSet):
 
 
 class ProfileViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
-    serializer_class = ProfileSerializer
+    serializer_class = SimpleProfileSerializer
     queryset = Profile.objects.all()
     permission_classes = [IsAuthenticated]
     lookup_field = "username"
 
-    def get_serializer_class(self):
-        if self.action == "retrieve":
-            return SimpleProfileSerializer
-        return self.serializer_class
-
     @action(methods=["GET"], detail=False)
     def me(self, request):
         profile = get_object_or_404(self.get_queryset(), account=request.user)
-        serializer = self.get_serializer(profile)
+        serializer = self.serializer_class(profile, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)

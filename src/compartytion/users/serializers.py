@@ -152,6 +152,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = ["username", "avatar", "introduction", "displayed_name", "hidden_name"]
+        extra_kwargs = {"username": {"required": False}}
 
     def update(self, instance, validated_data):
         avatar = validated_data.pop("avatar", None)
