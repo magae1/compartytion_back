@@ -25,7 +25,9 @@ class AccountCreationSerializer(serializers.ModelSerializer):
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate_username(self, username):
-        if Profile.objects.filter(username__iexact=username).exists():
+        if username == "me":
+            raise serializers.ValidationError(_("사용할 수 없는 사용자명입니다."))
+        elif Profile.objects.filter(username__iexact=username).exists():
             raise serializers.ValidationError(_("이미 존재하는 사용자명입니다."))
         return username
 
@@ -153,6 +155,11 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = Profile
         fields = ["username", "avatar", "introduction", "displayed_name", "hidden_name"]
         extra_kwargs = {"username": {"required": False}}
+
+    def validate_username(self, username):
+        if username == "me":
+            raise serializers.ValidationError(_("사용할 수 없는 사용자명입니다."))
+        return username
 
     def update(self, instance, validated_data):
         avatar = validated_data.pop("avatar", None)
