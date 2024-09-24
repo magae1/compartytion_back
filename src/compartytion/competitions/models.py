@@ -73,10 +73,13 @@ class Rule(models.Model):
 
 class Management(models.Model):
     account = models.ForeignKey(
-        settings.AUTH_USER_MODEL, verbose_name=_("계정"), on_delete=models.CASCADE
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("계정"),
+        on_delete=models.CASCADE,
+        editable=False,
     )
     competition = models.ForeignKey(
-        Competition, verbose_name=_("대회"), on_delete=models.PROTECT
+        Competition, verbose_name=_("대회"), on_delete=models.PROTECT, editable=False
     )
     handle_rules = models.BooleanField(_("규칙 변경 가능 여부"), default=False)
     handle_content = models.BooleanField(_("내용 변경 가능 여부"), default=False)
