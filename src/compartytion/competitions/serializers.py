@@ -1,8 +1,9 @@
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
 from .models import Competition, Rule, Management
-from ..users.models import Profile
+from ..users.models import Profile, Account
 from ..users.serializers import SimpleProfileSerializer
 
 
@@ -27,14 +28,20 @@ class ManagementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Management
         fields = [
+            "id",
             "profile",
             "competition",
+            "nickname",
             "handle_rules",
             "handle_content",
-            "handle_status",
             "handle_applicants",
             "handle_participants",
+            "accepted",
         ]
+        extra_kwargs = {
+            "nickname": {"read_only": True},
+            "accepted": {"read_only": True},
+        }
 
     @extend_schema_field(SimpleProfileSerializer)
     def get_profile(self, obj):
@@ -43,6 +50,12 @@ class ManagementSerializer(serializers.ModelSerializer):
             return SimpleProfileSerializer(profile).data
         except Profile.DoesNotExist:
             return None
+
+
+class ManagementNicknameSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Management
+        fields = ["id", "nickname"]
 
 
 class CompetitionCreateSerializer(serializers.ModelSerializer):
@@ -75,12 +88,39 @@ class CompetitionCreateSerializer(serializers.ModelSerializer):
             ).values_list("account_id", flat=True)
             Management.objects.bulk_create(
                 [
-                    Management(account_id=id, competition=competition)
-                    for id in account_ids
+                    Management(
+                        account_id=account_id,
+                        nickname=_(f"관리자 {idx}"),
+                        competition=competition,
+                    )
+                    for idx, account_id in enumerate(account_ids, start=1)
                 ]
             )
 
         return competition
+
+
+class AddManagerOnCompetitionSerializer(serializers.Serializer):
+    username = serializers.CharField()
+
+    def validate_username(self, value):
+        if not Profile.objects.filter(username=value).exists():
+            raise serializers.ValidationError(_("존재하지 않는 유저명입니다."))
+        return value
+
+    def update(self, instance, validated_data):
+        username = validated_data["username"]
+        if instance.managers.filter(profile__username=username).exists():
+            raise serializers.ValidationError(
+                {"username": _("이미 매니저로 초대된 유저입니다.")}
+            )
+        num_of_managers = instance.managers.count()
+        Management.objects.create(
+            competition=instance,
+            account=Account.objects.get(profile__username=username),
+            nickname=f"매니저 {num_of_managers + 1}",
+        )
+        return instance
 
 
 class SimpleCompetitionSerializer(serializers.ModelSerializer):
@@ -138,6 +178,7 @@ class CompetitionSerializer(SimpleCompetitionSerializer):
             "title",
             "created_at",
             "creator",
+            "creator_nickname",
             "status",
             "content",
             "is_team_game",

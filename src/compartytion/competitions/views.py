@@ -2,8 +2,18 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import viewsets, mixins, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
+from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.permissions import (
+    IsAuthenticatedOrReadOnly,
+    IsAuthenticated,
+    AllowAny,
+)
+from drf_spectacular.utils import (
+    extend_schema,
+    OpenApiTypes,
+    OpenApiParameter,
+    extend_schema_view,
+)
 
 from .models import Competition, Management
 from .serializers import (
@@ -11,20 +21,16 @@ from .serializers import (
     CompetitionCreateSerializer,
     SimpleCompetitionSerializer,
     ManagementSerializer,
+    AddManagerOnCompetitionSerializer,
 )
-from .permissions import IsCreator
+from .permissions import IsCreator, ManagementPermission
 
 
 class CompetitionViewSet(viewsets.GenericViewSet, mixins.DestroyModelMixin):
     queryset = Competition.objects.all()
     serializer_class = CompetitionSerializer
-
-    def get_permissions(self):
-        if self.action == "retrieve":
-            permission_classes = [IsCreator]
-        else:
-            permission_classes = [IsAuthenticatedOrReadOnly]
-        return [permission() for permission in permission_classes]
+    pagination_class = LimitOffsetPagination
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -51,9 +57,14 @@ class CompetitionViewSet(viewsets.GenericViewSet, mixins.DestroyModelMixin):
         serializer = self.get_serializer(competition, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(serializer.data)
+        return Response(status=status.HTTP_200_OK)
 
-    @action(methods=["GET"], detail=True, serializer_class=SimpleCompetitionSerializer)
+    @action(
+        methods=["GET"],
+        detail=True,
+        serializer_class=SimpleCompetitionSerializer,
+        permission_classes=[AllowAny],
+    )
     def preview(self, request, pk=None):
         competition = self.get_object()
         serializer = SimpleCompetitionSerializer(
@@ -61,13 +72,14 @@ class CompetitionViewSet(viewsets.GenericViewSet, mixins.DestroyModelMixin):
         )
         return Response(serializer.data)
 
+    @extend_schema(responses=SimpleCompetitionSerializer(many=True))
     @action(
         methods=["GET"],
         detail=False,
-        serializer_class=SimpleCompetitionSerializer,
         permission_classes=[IsAuthenticated],
     )
     def me(self, request):
+        print(self.get_permissions())
         my_competitions = self.queryset.filter(creator=request.user).order_by(
             "-created_at"
         )
@@ -83,58 +95,33 @@ class CompetitionViewSet(viewsets.GenericViewSet, mixins.DestroyModelMixin):
         return Response(serializer.data)
 
     @action(
-        methods=["GET", "PATCH"],
-        detail=True,
-        serializer_class=ManagementSerializer,
-        permission_classes=[IsCreator],
-    )
-    def managers(self, request, pk=None):
-        if request.method == "GET":
-            competition = self.get_object()
-            managements = Management.objects.filter(competition=competition)
-            serializer = ManagementSerializer(managements, many=True)
-            return Response(data=serializer.data)
-        if request.method == "PATCH":
-            competition = self.get_object()
-            queryset = Management.objects.filter(
-                competition=competition
-            ).select_related("account")
-            username = request.data.pop("account", None)
-            request.data["competition"] = pk
-            management = get_object_or_404(queryset, account__username=username)
-            serializer = ManagementSerializer(
-                management, data=request.data, partial=True
-            )
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response({"detail": _("매니저 권한이 변경됐습니다.")})
-        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-    @action(
         methods=["POST"],
         detail=True,
-        serializer_class=ManagementSerializer,
+        serializer_class=AddManagerOnCompetitionSerializer,
         permission_classes=[IsCreator],
     )
     def add_manager(self, request, pk=None):
-        request.data["competition"] = pk
-        serializer = ManagementSerializer(data=request.data)
+        competition = self.get_object()
+        serializer = AddManagerOnCompetitionSerializer(
+            competition, data=request.data, partial=True
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(status=status.HTTP_201_CREATED)
+        return Response(status=status.HTTP_200_OK)
 
-    @action(
-        methods=["POST"],
-        detail=True,
-        serializer_class=ManagementSerializer,
-        permission_classes=[IsCreator],
-    )
-    def delete_manager(self, request, pk=None):
-        competition = self.get_object()
-        queryset = Management.objects.filter(competition=competition).select_related(
-            "account"
-        )
-        username = request.data.pop("account", None)
-        management = get_object_or_404(queryset, account__username=username)
-        management.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class ManagementViewSet(
+    viewsets.GenericViewSet, mixins.ListModelMixin, mixins.DestroyModelMixin
+):
+    serializer_class = ManagementSerializer
+    permission_classes = [ManagementPermission]
+
+    def get_queryset(self):
+        return Management.objects.filter(competition__id=self.kwargs["competition_pk"])
+
+    def partial_update(self, request, pk=None):
+        management = self.get_object()
+        serializer = self.get_serializer(management, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(status=status.HTTP_200_OK)

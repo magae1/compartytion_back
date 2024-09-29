@@ -19,13 +19,13 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from rest_framework.routers import SimpleRouter
+from rest_framework_nested.routers import SimpleRouter, NestedSimpleRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from debug_toolbar.toolbar import debug_toolbar_urls
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from ..users.views import AuthViewSet, AccountViewSet, ProfileViewSet
-from ..competitions.views import CompetitionViewSet
+from ..competitions.views import CompetitionViewSet, ManagementViewSet
 
 router = SimpleRouter()
 router.register(r"auth", AuthViewSet, basename="auth")
@@ -33,10 +33,14 @@ router.register(r"accounts", AccountViewSet, basename="accounts")
 router.register(r"profiles", ProfileViewSet, basename="profiles")
 router.register(r"competitions", CompetitionViewSet, basename="competitions")
 
+competition_router = NestedSimpleRouter(router, r"competitions", lookup="competition")
+competition_router.register(r"managers", ManagementViewSet, basename="competitions")
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("api/", include(router.urls)),
+    path("api/", include(competition_router.urls)),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:
