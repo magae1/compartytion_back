@@ -2,7 +2,8 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
-from .models import Competition, Rule, Management
+from .models import Competition, Rule, Management, Applicant
+from .exceptions import AlreadyApplied
 from ..users.models import Profile, Account
 from ..users.serializers import SimpleProfileSerializer
 
@@ -195,3 +196,35 @@ class CompetitionSerializer(SimpleCompetitionSerializer):
         if self.context["request"].user in obj.managers.all():
             return True
         return False
+
+
+class ApplicationSerializer(serializers.ModelSerializer):
+    applicant_user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
+    class Meta:
+        model = Applicant
+        fields = [
+            "id",
+            "competition",
+            "applicant_user",
+            "email",
+            "displayed_name",
+            "hidden_name",
+            "introduction",
+            "applied_at",
+        ]
+
+    def validate(self, data):
+        competition_id = data["competition"]
+        user = data["applicant_user"]
+        authenticated_applicant_ids = Applicant.objects.filter(
+            competition_id=competition_id, account_id__isnull=False
+        ).values_list("account_id", flat=True)
+        if user.id in authenticated_applicant_ids:
+            raise AlreadyApplied()
+        return data
+
+    def create(self, validated_data):
+        user = validated_data.pop("applicant_user")
+        instance = Applicant.objects.create(**validated_data, account_id=user.id)
+        return instance

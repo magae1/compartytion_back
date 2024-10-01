@@ -1,6 +1,6 @@
 from django.utils.translation import gettext_lazy as _
 from rest_framework import viewsets, mixins, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import (
@@ -10,9 +10,6 @@ from rest_framework.permissions import (
 )
 from drf_spectacular.utils import (
     extend_schema,
-    OpenApiTypes,
-    OpenApiParameter,
-    extend_schema_view,
 )
 
 from .models import Competition, Management
@@ -22,8 +19,18 @@ from .serializers import (
     SimpleCompetitionSerializer,
     ManagementSerializer,
     AddManagerOnCompetitionSerializer,
+    ApplicationSerializer,
 )
 from .permissions import IsCreator, ManagementPermission
+
+
+@extend_schema(request=ApplicationSerializer, responses={201: ApplicationSerializer})
+@api_view(["POST"])
+def apply_to_competition(request):
+    serializer = ApplicationSerializer(data=request.data, context={"request": request})
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class CompetitionViewSet(viewsets.GenericViewSet, mixins.DestroyModelMixin):

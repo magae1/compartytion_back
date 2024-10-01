@@ -25,7 +25,11 @@ from debug_toolbar.toolbar import debug_toolbar_urls
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from ..users.views import AuthViewSet, AccountViewSet, ProfileViewSet
-from ..competitions.views import CompetitionViewSet, ManagementViewSet
+from ..competitions.views import (
+    CompetitionViewSet,
+    ManagementViewSet,
+    apply_to_competition,
+)
 
 router = SimpleRouter()
 router.register(r"auth", AuthViewSet, basename="auth")
@@ -39,6 +43,9 @@ competition_router.register(r"managers", ManagementViewSet, basename="competitio
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
+    path(
+        "api/apply-to-competition/", apply_to_competition, name="apply-to-competition"
+    ),
     path("api/", include(router.urls)),
     path("api/", include(competition_router.urls)),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
