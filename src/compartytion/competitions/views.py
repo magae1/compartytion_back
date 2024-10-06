@@ -86,7 +86,6 @@ class CompetitionViewSet(viewsets.GenericViewSet, mixins.DestroyModelMixin):
         permission_classes=[IsAuthenticated],
     )
     def me(self, request):
-        print(self.get_permissions())
         my_competitions = self.queryset.filter(creator=request.user).order_by(
             "-created_at"
         )
