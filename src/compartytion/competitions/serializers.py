@@ -126,8 +126,6 @@ class AddManagerOnCompetitionSerializer(serializers.Serializer):
 
 class SimpleCompetitionSerializer(serializers.ModelSerializer):
     creator = serializers.SerializerMethodField()
-    num_of_participants = serializers.SerializerMethodField()
-    num_of_applicants = serializers.SerializerMethodField()
 
     class Meta:
         model = Competition
@@ -139,8 +137,6 @@ class SimpleCompetitionSerializer(serializers.ModelSerializer):
             "status",
             "is_team_game",
             "introduction",
-            "num_of_participants",
-            "num_of_applicants",
         ]
         read_only_fields = ["is_team_game"]
 
@@ -151,14 +147,6 @@ class SimpleCompetitionSerializer(serializers.ModelSerializer):
             return SimpleProfileSerializer(profile, context=self.context).data
         except Profile.DoesNotExist:
             return None
-
-    @extend_schema_field(int)
-    def get_num_of_participants(self, obj):
-        return obj.participant_set.count()
-
-    @extend_schema_field(int)
-    def get_num_of_applicants(self, obj):
-        return obj.applicant_set.count()
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -171,6 +159,8 @@ class SimpleCompetitionSerializer(serializers.ModelSerializer):
 
 class CompetitionSerializer(SimpleCompetitionSerializer):
     is_manager = serializers.SerializerMethodField()
+    num_of_participants = serializers.SerializerMethodField()
+    num_of_applicants = serializers.SerializerMethodField()
 
     class Meta:
         model = Competition
@@ -196,6 +186,14 @@ class CompetitionSerializer(SimpleCompetitionSerializer):
         if self.context["request"].user in obj.managers.all():
             return True
         return False
+
+    @extend_schema_field(int)
+    def get_num_of_participants(self, obj):
+        return obj.participant_set.count()
+
+    @extend_schema_field(int)
+    def get_num_of_applicants(self, obj):
+        return obj.applicant_set.count()
 
 
 class ApplicationSerializer(serializers.ModelSerializer):
