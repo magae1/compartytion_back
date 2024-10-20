@@ -158,6 +158,12 @@ SIMPLE_JWT = {
     "USER_ID_CLAIM": "user_id",
     "TOKEN_OBTAIN_SERIALIZER": "rest_framework_simplejwt.serializers.TokenObtainPairSerializer",
     "TOKEN_REFRESH_SERIALIZER": "rest_framework_simplejwt.serializers.TokenRefreshSerializer",
+    "PARTICIPANT_HEADER_NAME": "X-PARTICIPANT-TOKEN",
+    "PARTICIPANT_ID_FIELD": "id",
+    "PARTICIPANT_ID_CLAIM": "participant_id",
+    "PARTICIPANT_TOKEN_CLASSES": (
+        "compartytion.competitions.tokens.PariticipantAccessToken",
+    ),
 }
 
 SPECTACULAR_SETTINGS = {

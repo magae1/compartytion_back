@@ -179,20 +179,17 @@ class CompetitionSerializer(SimpleCompetitionSerializer):
         ]
         read_only_fields = ["creator", "is_team_game", "status"]
 
-    @extend_schema_field(bool)
-    def get_is_manager(self, obj):
+    def get_is_manager(self, obj) -> bool:
         if self.context["request"].user == obj.creator:
             return True
         if self.context["request"].user in obj.managers.all():
             return True
         return False
 
-    @extend_schema_field(int)
-    def get_num_of_participants(self, obj):
+    def get_num_of_participants(self, obj: Competition) -> int:
         return obj.participant_set.count()
 
-    @extend_schema_field(int)
-    def get_num_of_applicants(self, obj):
+    def get_num_of_applicants(self, obj: Competition) -> int:
         return obj.applicant_set.count()
 
 

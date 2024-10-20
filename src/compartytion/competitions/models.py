@@ -1,6 +1,7 @@
 from uuid import uuid4
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 
@@ -152,6 +153,10 @@ class Participant(models.Model):
                 fields=["competition", "order"], name="unique_participant_order"
             ),
         ]
+
+    def update_last_login(self):
+        self.last_login_at = timezone.now()
+        self.save()
 
 
 class Applicant(models.Model):
