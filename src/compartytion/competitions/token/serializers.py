@@ -6,11 +6,12 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import PasswordField
 
 from ..models import Participant
-from .tokens import Token, PariticipantAccessToken
+from .tokens import Token, ParticipantAccessToken
 
 
 class TokenObtainSerializer(serializers.Serializer):
-    id_field = "participant_id"
+    id_field = "access_id"
+    password_field = "access_password"
     token_class: Optional[Type[Token]] = None
 
     default_error_messages = {
@@ -21,7 +22,7 @@ class TokenObtainSerializer(serializers.Serializer):
         super().__init__(*args, **kwargs)
 
         self.fields[self.id_field] = serializers.CharField(write_only=True)
-        self.fields["password"] = PasswordField()
+        self.fields[self.password_field] = PasswordField()
 
     def validate(self, attrs: Dict[str, Any]) -> Dict[Any, Any]:
         try:
@@ -31,9 +32,9 @@ class TokenObtainSerializer(serializers.Serializer):
                 {self.id_field: _("존재하지 않는 참가자입니다.")}
             )
 
-        if not check_password(attrs["password"], self.participant.password):
+        if not check_password(attrs[self.password_field], self.participant.password):
             raise serializers.ValidationError(
-                {"password": _("비밀번호가 일치하지 않습니다.")}
+                {self.password_field: _("비밀번호가 일치하지 않습니다.")}
             )
 
         return {}
@@ -44,7 +45,7 @@ class TokenObtainSerializer(serializers.Serializer):
 
 
 class TokenObtainAccessSerializer(TokenObtainSerializer):
-    token_class = PariticipantAccessToken
+    token_class = ParticipantAccessToken
 
     def validate(self, attrs: Dict[str, Any]) -> Dict[str, str]:
         data = super().validate(attrs)

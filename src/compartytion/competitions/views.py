@@ -1,6 +1,6 @@
 from django.utils.translation import gettext_lazy as _
 from rest_framework import viewsets, mixins, status
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import (
@@ -12,7 +12,7 @@ from drf_spectacular.utils import (
     extend_schema,
 )
 
-from .models import Competition, Management
+from .models import Competition, Management, Applicant
 from .serializers import (
     CompetitionSerializer,
     CompetitionCreateSerializer,
@@ -20,17 +20,34 @@ from .serializers import (
     ManagementSerializer,
     AddManagerOnCompetitionSerializer,
     ApplicationSerializer,
+    ApplicantSerializer,
 )
 from .permissions import IsCreator, ManagementPermission
 
 
-@extend_schema(request=ApplicationSerializer, responses={201: ApplicationSerializer})
-@api_view(["POST"])
-def apply_to_competition(request):
-    serializer = ApplicationSerializer(data=request.data, context={"request": request})
-    serializer.is_valid(raise_exception=True)
-    serializer.save()
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
+class ApplicantViewSet(viewsets.GenericViewSet):
+    queryset = Applicant.objects.all()
+    serializer_class = ApplicantSerializer
+    permission_classes = [AllowAny]
+
+    @action(methods=["POST"], detail=False)
+    def check(self, request):
+        serializer = self.serializer_class(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(methods=["POST"], detail=False, serializer_class=ApplicationSerializer)
+    def register(self, request):
+        serializer = ApplicationSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {"detail": _("참가 신청을 완료했습니다.")}, status=status.HTTP_200_OK
+        )
 
 
 class CompetitionViewSet(viewsets.GenericViewSet, mixins.DestroyModelMixin):

@@ -1,9 +1,10 @@
+from django.contrib.auth.models import AnonymousUser
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
-from .models import Competition, Rule, Management, Applicant
-from .exceptions import AlreadyApplied
+from .models import Competition, Rule, Management, Applicant, Participant
+from .exceptions import AlreadyApplied, NotApplied
 from ..users.models import Profile, Account
 from ..users.serializers import SimpleProfileSerializer
 
@@ -194,14 +195,99 @@ class CompetitionSerializer(SimpleCompetitionSerializer):
 
 
 class ApplicationSerializer(serializers.ModelSerializer):
-    applicant_user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
         model = Applicant
         fields = [
-            "id",
             "competition",
-            "applicant_user",
+            "user",
+            "access_id",
+            "access_password",
+            "email",
+            "displayed_name",
+            "hidden_name",
+            "introduction",
+            "applied_at",
+        ]
+        extra_kwargs = {"access_password": {"write_only": True}}
+
+    def validate(self, data):
+        competition_id = data["competition"]
+        user = data["user"]
+        access_id = data.get("access_id")
+        access_password = data.get("access_password")
+        if isinstance(user, AnonymousUser):
+            if not access_id and not access_password:
+                raise serializers.ValidationError(
+                    {
+                        "access_id": _("접속 아이디를 입력해주세요."),
+                        "access_password": _("접속 비밀번호를 입력해주세요."),
+                    }
+                )
+            if not access_id:
+                raise serializers.ValidationError(
+                    {"access_id": _("접속 아이디를 입력해주세요.")}
+                )
+            if not access_password:
+                raise serializers.ValidationError(
+                    {"access_password": _("접속 비밀번호를 입력해주세요.")}
+                )
+
+            if (
+                Applicant.objects.filter(
+                    competition_id=competition_id,
+                    account_id__isnull=True,
+                    access_id=access_id,
+                ).exists()
+                or Participant.objects.filter(
+                    competition_id=competition_id,
+                    account_id__isnull=True,
+                    access_id=access_id,
+                ).exists()
+            ):
+                raise serializers.ValidationError(
+                    {"access_id": _("이미 존재하는 접속 아이디입니다.")}
+                )
+        else:
+            data.pop("access_id", None)
+            data.pop("access_password", None)
+            authenticated_applicant_ids = Applicant.objects.filter(
+                competition_id=competition_id, account_id__isnull=False
+            ).values_list("account_id", flat=True)
+            if user.id in authenticated_applicant_ids:
+                raise AlreadyApplied()
+        return data
+
+    def create(self, validated_data):
+        user = validated_data.pop("applicant_user")
+        applicant = Applicant(**validated_data, account_id=user.id)
+        applicant.set_password(validated_data.get("access_password"))
+        applicant.save()
+        return applicant
+
+
+class ApplicantSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
+    class Meta:
+        model = Applicant
+        fields = [
+            "user",
+            "competition",
+            "access_id",
+            "access_password",
+            "email",
+            "displayed_name",
+            "hidden_name",
+            "introduction",
+            "applied_at",
+        ]
+        extra_kwargs = {
+            "access_password": {"write_only": True},
+            "access_id": {"write_only": True},
+        }
+        read_only_fields = [
             "email",
             "displayed_name",
             "hidden_name",
@@ -210,16 +296,38 @@ class ApplicationSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, data):
-        competition_id = data["competition"]
-        user = data["applicant_user"]
-        authenticated_applicant_ids = Applicant.objects.filter(
-            competition_id=competition_id, account_id__isnull=False
-        ).values_list("account_id", flat=True)
-        if user.id in authenticated_applicant_ids:
-            raise AlreadyApplied()
-        return data
+        user = data["user"]
+        competition_id = data.get("competition", None)
+        access_id = data.get("access_id", None)
+        access_password = data.get("access_password", None)
 
-    def create(self, validated_data):
-        user = validated_data.pop("applicant_user")
-        instance = Applicant.objects.create(**validated_data, account_id=user.id)
-        return instance
+        if isinstance(user, AnonymousUser):
+            if not competition_id:
+                raise serializers.ValidationError(_("알 수 없는 요청입니다."))
+            if not access_id:
+                raise serializers.ValidationError(
+                    {"access_id": _("접속 아이디를 입력해주세요.")}
+                )
+            if not access_password:
+                raise serializers.ValidationError(
+                    {"access_password": _("접속 비밀번호를 입력해주세요.")}
+                )
+            try:
+                applicant = Applicant.objects.get(
+                    access_id=access_id, competition_id=competition_id
+                )
+                if not applicant.check_password(access_password):
+                    raise serializers.ValidationError(
+                        {"access_password": _("접속 비밀번호를 확인해주세요.")}
+                    )
+            except Applicant.DoesNotExist:
+                raise NotApplied()
+            return applicant
+
+        try:
+            applicant = Applicant.objects.get(
+                competition_id=competition_id, account_id=user.id
+            )
+        except Applicant.DoesNotExist:
+            raise NotApplied()
+        return applicant

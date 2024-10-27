@@ -13,16 +13,16 @@ class ParticipantToken(Token):
 
     @classmethod
     def for_participant(cls: Type[T], participant: Participant) -> T:
-        participant_id = getattr(participant, JWT_SETTINGS.PARTICIPANT_ID_FIELD)
+        participant_id = getattr(participant, JWT_SETTINGS.get("PARTICIPANT_ID_FIELD"))
 
         participant_id = str(participant_id)
 
         token = cls()
-        token[JWT_SETTINGS.PARTICIPANT_ID_CLAIM] = participant_id
+        token[JWT_SETTINGS.get("PARTICIPANT_ID_CLAIM")] = participant_id
 
         return token
 
 
-class PariticipantAccessToken(Participant):
+class ParticipantAccessToken(Participant):
     token_type = "access"
-    lifetime = JWT_SETTINGS.ACCESS_TOKEN_LIFETIME
+    lifetime = JWT_SETTINGS.get("ACCESS_TOKEN_LIFETIME")

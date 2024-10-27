@@ -1,5 +1,6 @@
 from uuid import uuid4
 from django.conf import settings
+from django.contrib.auth.hashers import make_password, check_password
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -121,26 +122,40 @@ class Team(models.Model):
         ]
 
 
-class Participant(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+class AbstractPlayer(models.Model):
     account = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         verbose_name=_("계정"),
         null=True,
         on_delete=models.SET_NULL,
     )
-    team = models.ForeignKey(
-        Team, verbose_name=_("소속 팀"), null=True, on_delete=models.SET_NULL
-    )
     competition = models.ForeignKey(
         Competition, verbose_name=_("대회"), on_delete=models.PROTECT
     )
-    order = models.PositiveSmallIntegerField(_("순서"))
+    access_id = models.CharField(_("접속 아이디"), blank=True, null=True, max_length=40)
+    access_password = models.CharField(
+        _("접속 비밀번호"), blank=True, null=True, max_length=255
+    )
     email = models.EmailField(_("이메일"), null=True)
-    password = models.CharField(_("비밀번호"), max_length=255)
     displayed_name = models.CharField(_("공개 이름"), max_length=30)
     hidden_name = models.CharField(_("비공개 이름"), max_length=30)
     introduction = models.TextField(_("소개글"), null=True, blank=True, max_length=255)
+
+    class Meta:
+        abstract = True
+
+    def set_password(self, raw_password):
+        self.access_password = make_password(raw_password)
+
+    def check_password(self, raw_password) -> bool:
+        return check_password(raw_password, self.access_password)
+
+
+class Participant(AbstractPlayer):
+    team = models.ForeignKey(
+        Team, verbose_name=_("소속 팀"), null=True, on_delete=models.SET_NULL
+    )
+    order = models.PositiveSmallIntegerField(_("순서"))
     joined_at = models.DateTimeField(_("참가일"), auto_now_add=True, editable=False)
     last_login_at = models.DateTimeField(_("최근 접속일"), auto_now_add=True)
 
@@ -151,7 +166,7 @@ class Participant(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["competition", "order"], name="unique_participant_order"
-            ),
+            )
         ]
 
     def update_last_login(self):
@@ -159,21 +174,7 @@ class Participant(models.Model):
         self.save()
 
 
-class Applicant(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
-    account = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        verbose_name=_("계정"),
-        null=True,
-        on_delete=models.SET_NULL,
-    )
-    competition = models.ForeignKey(
-        Competition, verbose_name=_("대회"), on_delete=models.PROTECT
-    )
-    email = models.EmailField(_("이메일"), null=True)
-    displayed_name = models.CharField(_("공개 이름"), max_length=30)
-    hidden_name = models.CharField(_("비공개 이름"), max_length=30)
-    introduction = models.TextField(_("소개글"), null=True, blank=True, max_length=255)
+class Applicant(AbstractPlayer):
     applied_at = models.DateTimeField(_("신청일"), auto_now_add=True, editable=False)
 
     class Meta:
