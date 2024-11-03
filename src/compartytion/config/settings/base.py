@@ -162,8 +162,9 @@ SIMPLE_JWT = {
     "PARTICIPANT_ID_FIELD": "id",
     "PARTICIPANT_ID_CLAIM": "participant_id",
     "PARTICIPANT_TOKEN_CLASSES": (
-        "compartytion.competitions.tokens.PariticipantAccessToken",
+        "compartytion.competitions.token.tokens.ParticipantAccessToken",
     ),
+    "PARTICIPANT_ACCESS_TOKEN_SERIALIZER": "compartytion.competitions.token.serializers.TokenObtainAccessSerializer",
 }
 
 SPECTACULAR_SETTINGS = {

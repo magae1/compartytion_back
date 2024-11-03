@@ -252,6 +252,12 @@ class ApplicationSerializer(serializers.ModelSerializer):
         else:
             data.pop("access_id", None)
             data.pop("access_password", None)
+            if Competition.objects.filter(
+                id=competition_id, creator_id=user.id
+            ).exists():
+                raise serializers.ValidationError(
+                    _("대회 개최자는 참가 신청을 할 수 없습니다.")
+                )
             authenticated_applicant_ids = Applicant.objects.filter(
                 competition_id=competition_id, account_id__isnull=False
             ).values_list("account_id", flat=True)
@@ -269,11 +275,14 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
 class ApplicantSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    profile = serializers.SerializerMethodField()
 
     class Meta:
         model = Applicant
         fields = [
+            "id",
             "user",
+            "profile",
             "competition",
             "access_id",
             "access_password",
@@ -286,8 +295,10 @@ class ApplicantSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "access_password": {"write_only": True},
             "access_id": {"write_only": True},
+            "competition": {"write_only": True},
         }
         read_only_fields = [
+            "id",
             "email",
             "displayed_name",
             "hidden_name",
@@ -331,3 +342,19 @@ class ApplicantSerializer(serializers.ModelSerializer):
         except Applicant.DoesNotExist:
             raise NotApplied()
         return applicant
+
+    @extend_schema_field(SimpleProfileSerializer)
+    def get_profile(self, obj):
+        if not obj.account:
+            return None
+        try:
+            profile = Profile.objects.get(account=obj.account)
+            return SimpleProfileSerializer(profile).data
+        except Profile.DoesNotExist:
+            return None
+
+
+class ParticipantSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Participant
+        fields = "__all__"

@@ -28,6 +28,8 @@ from ..users.views import AuthViewSet, AccountViewSet, ProfileViewSet
 from ..competitions.views import (
     CompetitionViewSet,
     ManagementViewSet,
+    ApplicationViewSet,
+    ParticipantAccessTokenView,
     ApplicantViewSet,
 )
 
@@ -36,14 +38,20 @@ router.register(r"auth", AuthViewSet, basename="auth")
 router.register(r"accounts", AccountViewSet, basename="accounts")
 router.register(r"profiles", ProfileViewSet, basename="profiles")
 router.register(r"competitions", CompetitionViewSet, basename="competitions")
-router.register(r"applicants", ApplicantViewSet, basename="applicants")
+router.register(r"applications", ApplicationViewSet, basename="applications")
 
 competition_router = NestedSimpleRouter(router, r"competitions", lookup="competition")
 competition_router.register(r"managers", ManagementViewSet, basename="competitions")
+competition_router.register(r"applicants", ApplicantViewSet, basename="applicants")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
+    path(
+        "api/token/participant/access/",
+        ParticipantAccessTokenView.as_view(),
+        name="participant-access-token",
+    ),
     path("api/", include(router.urls)),
     path("api/", include(competition_router.urls)),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

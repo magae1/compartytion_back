@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Type, TypeVar
+from typing import Any, Dict, Optional, Type
 
 from django.contrib.auth.hashers import check_password
 from django.utils.translation import gettext_lazy as _
@@ -21,12 +21,13 @@ class TokenObtainSerializer(serializers.Serializer):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+        self.participant = None
         self.fields[self.id_field] = serializers.CharField(write_only=True)
         self.fields[self.password_field] = PasswordField()
 
     def validate(self, attrs: Dict[str, Any]) -> Dict[Any, Any]:
         try:
-            self.participant = Participant.objects.get(id=attrs[self.id_field])
+            self.participant = Participant.objects.get(access_id=attrs[self.id_field])
         except Participant.DoesNotExist:
             raise serializers.ValidationError(
                 {self.id_field: _("존재하지 않는 참가자입니다.")}
