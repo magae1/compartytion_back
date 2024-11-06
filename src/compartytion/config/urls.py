@@ -31,6 +31,7 @@ from ..competitions.views import (
     ApplicationViewSet,
     ParticipantAccessTokenView,
     ApplicantViewSet,
+    ParticipantViewSet,
 )
 
 router = SimpleRouter()
@@ -43,6 +44,9 @@ router.register(r"applications", ApplicationViewSet, basename="applications")
 competition_router = NestedSimpleRouter(router, r"competitions", lookup="competition")
 competition_router.register(r"managers", ManagementViewSet, basename="competitions")
 competition_router.register(r"applicants", ApplicantViewSet, basename="applicants")
+competition_router.register(
+    r"participants", ParticipantViewSet, basename="participants"
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),

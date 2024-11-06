@@ -25,6 +25,7 @@ from .serializers import (
     AddManagerOnCompetitionSerializer,
     ApplicationSerializer,
     ApplicantSerializer,
+    ParticipantSerializer,
 )
 from .permissions import IsCreator, ManagementPermission
 
@@ -168,9 +169,7 @@ class ApplicantViewSet(
     permission_classes = [ManagementPermission]
 
     def get_queryset(self):
-        return Applicant.objects.filter(
-            competition__id=self.kwargs["competition_pk"]
-        ).prefetch_related("account")
+        return Applicant.objects.filter(competition__id=self.kwargs["competition_pk"])
 
     @extend_schema(request=List[int])
     @action(detail=False, methods=["POST"])
@@ -178,7 +177,7 @@ class ApplicantViewSet(
         applicant_ids = request.data
         applicants = self.get_queryset().filter(id__in=applicant_ids)
         num_of_participant = Participant.objects.filter(
-            competition__id=competition_pk
+            competition_id=competition_pk
         ).count()
         new_participants = []
         for i, applicant in enumerate(applicants, start=1):
@@ -201,3 +200,12 @@ class ApplicantViewSet(
             {"detail": f"{len(new_participants)}명의 참가자들이 추가됐습니다."},
             status=status.HTTP_200_OK,
         )
+
+
+class ParticipantViewSet(viewsets.GenericViewSet, mixins.ListModelMixin):
+    queryset = Participant.objects.all()
+    serializer_class = ParticipantSerializer
+    permission_classes = [ManagementPermission]
+
+    def get_queryset(self):
+        return Participant.objects.filter(competition_id=self.kwargs["competition_pk"])

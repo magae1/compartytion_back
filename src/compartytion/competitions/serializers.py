@@ -354,7 +354,42 @@ class ApplicantSerializer(serializers.ModelSerializer):
             return None
 
 
-class ParticipantSerializer(serializers.ModelSerializer):
+class SimpleParticipantSerializer(serializers.ModelSerializer):
+    profile = serializers.SerializerMethodField()
+
     class Meta:
         model = Participant
-        fields = "__all__"
+        fields = ["id", "profile", "displayed_name", "order"]
+
+    @extend_schema_field(SimpleProfileSerializer)
+    def get_profile(self, obj):
+        if not obj.account:
+            return None
+        try:
+            profile = Profile.objects.get(account=obj.account)
+            return SimpleProfileSerializer(profile).data
+        except Profile.DoesNotExist:
+            return None
+
+
+class ParticipantSerializer(SimpleParticipantSerializer):
+    class Meta:
+        model = Participant
+        fields = [
+            "id",
+            "profile",
+            "access_id",
+            "access_password",
+            "email",
+            "displayed_name",
+            "hidden_name",
+            "introduction",
+            "order",
+            "joined_at",
+            "last_login_at",
+        ]
+        extra_kwargs = {
+            "access_id": {"write_only": True},
+            "access_password": {"write_only": True},
+            "email": {"write_only": True},
+        }
