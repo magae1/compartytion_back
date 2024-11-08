@@ -24,6 +24,47 @@ class RuleSerializer(serializers.ModelSerializer):
         list_serializer_class = RuleListSerializer
 
 
+class SimpleParticipantSerializer(serializers.ModelSerializer):
+    profile = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Participant
+        fields = ["id", "profile", "displayed_name", "order"]
+
+    @extend_schema_field(SimpleProfileSerializer)
+    def get_profile(self, obj):
+        if not obj.account:
+            return None
+        try:
+            profile = Profile.objects.get(account=obj.account)
+            return SimpleProfileSerializer(profile).data
+        except Profile.DoesNotExist:
+            return None
+
+
+class ParticipantSerializer(SimpleParticipantSerializer):
+    class Meta:
+        model = Participant
+        fields = [
+            "id",
+            "profile",
+            "access_id",
+            "access_password",
+            "email",
+            "displayed_name",
+            "hidden_name",
+            "introduction",
+            "order",
+            "joined_at",
+            "last_login_at",
+        ]
+        extra_kwargs = {
+            "access_id": {"write_only": True},
+            "access_password": {"write_only": True},
+            "email": {"write_only": True},
+        }
+
+
 class ManagementSerializer(serializers.ModelSerializer):
     profile = serializers.SerializerMethodField()
 
@@ -162,6 +203,7 @@ class CompetitionSerializer(SimpleCompetitionSerializer):
     is_manager = serializers.SerializerMethodField()
     num_of_participants = serializers.SerializerMethodField()
     num_of_applicants = serializers.SerializerMethodField()
+    participants = serializers.SerializerMethodField()
 
     class Meta:
         model = Competition
@@ -177,6 +219,7 @@ class CompetitionSerializer(SimpleCompetitionSerializer):
             "num_of_participants",
             "num_of_applicants",
             "is_manager",
+            "participants",
         ]
         read_only_fields = ["creator", "is_team_game", "status"]
 
@@ -192,6 +235,13 @@ class CompetitionSerializer(SimpleCompetitionSerializer):
 
     def get_num_of_applicants(self, obj: Competition) -> int:
         return obj.applicant_set.count()
+
+    @extend_schema_field(
+        serializers.ListSerializer(child=SimpleParticipantSerializer())
+    )
+    def get_participants(self, obj: Competition):
+        participants = Participant.objects.filter(competition=obj)
+        return [SimpleParticipantSerializer(**p).data for p in participants]
 
 
 class ApplicationSerializer(serializers.ModelSerializer):
@@ -352,44 +402,3 @@ class ApplicantSerializer(serializers.ModelSerializer):
             return SimpleProfileSerializer(profile).data
         except Profile.DoesNotExist:
             return None
-
-
-class SimpleParticipantSerializer(serializers.ModelSerializer):
-    profile = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Participant
-        fields = ["id", "profile", "displayed_name", "order"]
-
-    @extend_schema_field(SimpleProfileSerializer)
-    def get_profile(self, obj):
-        if not obj.account:
-            return None
-        try:
-            profile = Profile.objects.get(account=obj.account)
-            return SimpleProfileSerializer(profile).data
-        except Profile.DoesNotExist:
-            return None
-
-
-class ParticipantSerializer(SimpleParticipantSerializer):
-    class Meta:
-        model = Participant
-        fields = [
-            "id",
-            "profile",
-            "access_id",
-            "access_password",
-            "email",
-            "displayed_name",
-            "hidden_name",
-            "introduction",
-            "order",
-            "joined_at",
-            "last_login_at",
-        ]
-        extra_kwargs = {
-            "access_id": {"write_only": True},
-            "access_password": {"write_only": True},
-            "email": {"write_only": True},
-        }
