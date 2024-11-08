@@ -6,7 +6,7 @@ from drf_spectacular.utils import extend_schema_field
 from .models import Competition, Rule, Management, Applicant, Participant
 from .exceptions import AlreadyApplied, NotApplied
 from ..users.models import Profile, Account
-from ..users.serializers import SimpleProfileSerializer
+from ..users.serializers import SimpleAccountSerializer
 
 
 class RuleListSerializer(serializers.ListSerializer):
@@ -25,21 +25,11 @@ class RuleSerializer(serializers.ModelSerializer):
 
 
 class SimpleParticipantSerializer(serializers.ModelSerializer):
-    profile = serializers.SerializerMethodField()
+    account = SimpleAccountSerializer(many=False)
 
     class Meta:
         model = Participant
-        fields = ["id", "profile", "displayed_name", "order"]
-
-    @extend_schema_field(SimpleProfileSerializer)
-    def get_profile(self, obj):
-        if not obj.account:
-            return None
-        try:
-            profile = Profile.objects.get(account=obj.account)
-            return SimpleProfileSerializer(profile).data
-        except Profile.DoesNotExist:
-            return None
+        fields = ["id", "account", "displayed_name", "order"]
 
 
 class ParticipantSerializer(SimpleParticipantSerializer):
@@ -47,7 +37,7 @@ class ParticipantSerializer(SimpleParticipantSerializer):
         model = Participant
         fields = [
             "id",
-            "profile",
+            "account",
             "access_id",
             "access_password",
             "email",
@@ -66,13 +56,13 @@ class ParticipantSerializer(SimpleParticipantSerializer):
 
 
 class ManagementSerializer(serializers.ModelSerializer):
-    profile = serializers.SerializerMethodField()
+    account = SimpleAccountSerializer(many=False)
 
     class Meta:
         model = Management
         fields = [
             "id",
-            "profile",
+            "account",
             "competition",
             "nickname",
             "handle_rules",
@@ -85,14 +75,6 @@ class ManagementSerializer(serializers.ModelSerializer):
             "nickname": {"read_only": True},
             "accepted": {"read_only": True},
         }
-
-    @extend_schema_field(SimpleProfileSerializer)
-    def get_profile(self, obj):
-        try:
-            profile = Profile.objects.get(account=obj.account)
-            return SimpleProfileSerializer(profile).data
-        except Profile.DoesNotExist:
-            return None
 
 
 class ManagementNicknameSerializer(serializers.ModelSerializer):
@@ -167,7 +149,7 @@ class AddManagerOnCompetitionSerializer(serializers.Serializer):
 
 
 class SimpleCompetitionSerializer(serializers.ModelSerializer):
-    creator = serializers.SerializerMethodField()
+    creator = SimpleAccountSerializer(many=False)
 
     class Meta:
         model = Competition
@@ -182,14 +164,6 @@ class SimpleCompetitionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["is_team_game"]
 
-    @extend_schema_field(SimpleProfileSerializer)
-    def get_creator(self, obj):
-        try:
-            profile = Profile.objects.get(account=obj.creator)
-            return SimpleProfileSerializer(profile, context=self.context).data
-        except Profile.DoesNotExist:
-            return None
-
     def to_representation(self, instance):
         data = super().to_representation(instance)
         for key, label in Competition.StatusChoices.choices:
@@ -200,6 +174,7 @@ class SimpleCompetitionSerializer(serializers.ModelSerializer):
 
 
 class CompetitionSerializer(SimpleCompetitionSerializer):
+    creator = SimpleAccountSerializer(many=False)
     is_manager = serializers.SerializerMethodField()
     num_of_participants = serializers.SerializerMethodField()
     num_of_applicants = serializers.SerializerMethodField()
@@ -325,14 +300,12 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
 class ApplicantSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    profile = serializers.SerializerMethodField()
 
     class Meta:
         model = Applicant
         fields = [
             "id",
             "user",
-            "profile",
             "competition",
             "access_id",
             "access_password",
@@ -392,13 +365,3 @@ class ApplicantSerializer(serializers.ModelSerializer):
         except Applicant.DoesNotExist:
             raise NotApplied()
         return applicant
-
-    @extend_schema_field(SimpleProfileSerializer)
-    def get_profile(self, obj):
-        if not obj.account:
-            return None
-        try:
-            profile = Profile.objects.get(account=obj.account)
-            return SimpleProfileSerializer(profile).data
-        except Profile.DoesNotExist:
-            return None

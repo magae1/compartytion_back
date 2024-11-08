@@ -10,6 +10,13 @@ from rest_framework import serializers
 from PIL import Image, ImageOps
 
 from .models import Account, UnauthenticatedEmail, Profile
+from .utils import mask_email
+
+
+class SimpleProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ["username", "avatar"]
 
 
 class AccountCreationSerializer(serializers.ModelSerializer):
@@ -189,7 +196,14 @@ class AccountSerializer(serializers.ModelSerializer):
         read_only_fields = ["email", "last_password_changed"]
 
 
-class SimpleProfileSerializer(serializers.ModelSerializer):
+class SimpleAccountSerializer(serializers.ModelSerializer):
+    profile = SimpleProfileSerializer(many=False, read_only=True)
+
     class Meta:
-        model = Profile
-        fields = ["username", "avatar"]
+        model = Account
+        fields = ["id", "email", "profile"]
+
+    def to_representation(self, instance: Account):
+        ret = super().to_representation(instance)
+        ret["email"] = mask_email(ret["email"])
+        return ret

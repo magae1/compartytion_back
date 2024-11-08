@@ -12,7 +12,7 @@ from django.core.validators import RegexValidator, MinLengthValidator
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from ..utils import generate_otp
+from .utils import generate_otp, avatar_directory_path
 
 
 class AccountManager(BaseUserManager):
@@ -127,10 +127,6 @@ class UnauthenticatedEmail(models.Model):
         return (
             self.created_at + timedelta(seconds=settings.OTP_SECONDS) - timezone.now()
         )
-
-
-def avatar_directory_path(instance, filename):
-    return f"avatar/{instance.account.id}/{filename}"
 
 
 class Profile(models.Model):
