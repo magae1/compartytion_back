@@ -12,7 +12,7 @@ def generate_otp(length=6) -> str:
 
 
 def avatar_directory_path(instance, filename: str) -> str:
-    file_format = filename.split(".", 1)[-1]
+    file_format = filename.split(".")[-1]
     return f"avatar/{instance.account.id}.{file_format}"
 
 
