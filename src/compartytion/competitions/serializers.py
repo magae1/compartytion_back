@@ -4,7 +4,7 @@ from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
 from .models import Competition, Rule, Management, Applicant, Participant
-from .exceptions import AlreadyApplied, NotApplied
+from .exceptions import AlreadyApplied, NotApplied, AlreadyBeParticipant, InvalidRequest
 from ..users.models import Profile, Account
 from ..users.serializers import SimpleAccountSerializer
 
@@ -216,7 +216,7 @@ class CompetitionSerializer(SimpleCompetitionSerializer):
     )
     def get_participants(self, obj: Competition):
         participants = Participant.objects.filter(competition=obj)
-        return [SimpleParticipantSerializer(**p).data for p in participants]
+        return [SimpleParticipantSerializer(instance=p).data for p in participants]
 
 
 class ApplicationSerializer(serializers.ModelSerializer):
@@ -238,7 +238,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
         extra_kwargs = {"access_password": {"write_only": True}}
 
     def validate(self, data):
-        competition_id = data["competition"]
+        competition = data["competition"]
         user = data["user"]
         access_id = data.get("access_id")
         access_password = data.get("access_password")
@@ -261,12 +261,12 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
             if (
                 Applicant.objects.filter(
-                    competition_id=competition_id,
+                    competition=competition,
                     account_id__isnull=True,
                     access_id=access_id,
                 ).exists()
                 or Participant.objects.filter(
-                    competition_id=competition_id,
+                    competition=competition,
                     account_id__isnull=True,
                     access_id=access_id,
                 ).exists()
@@ -278,34 +278,42 @@ class ApplicationSerializer(serializers.ModelSerializer):
             data.pop("access_id", None)
             data.pop("access_password", None)
             if Competition.objects.filter(
-                id=competition_id, creator_id=user.id
+                id=competition.id, creator_id=user.id
             ).exists():
-                raise serializers.ValidationError(
-                    _("대회 개최자는 참가 신청을 할 수 없습니다.")
-                )
+                raise InvalidRequest(_("대회 개최자는 참가 신청을 할 수 없습니다."))
             authenticated_applicant_ids = Applicant.objects.filter(
-                competition_id=competition_id, account_id__isnull=False
+                competition=competition, account_id__isnull=False
             ).values_list("account_id", flat=True)
             if user.id in authenticated_applicant_ids:
                 raise AlreadyApplied()
+            authenticated_participant_ids = Participant.objects.filter(
+                competition=competition, account_id__isnull=False
+            ).values_list("account_id", flat=True)
+            if user.id in authenticated_participant_ids:
+                raise AlreadyBeParticipant()
         return data
 
     def create(self, validated_data):
-        user = validated_data.pop("applicant_user")
-        applicant = Applicant(**validated_data, account_id=user.id)
-        applicant.set_password(validated_data.get("access_password"))
+        user = validated_data.pop("user")
+        if isinstance(user, AnonymousUser):
+            applicant = Applicant(**validated_data)
+            applicant.set_password(validated_data.get("access_password"))
+        else:
+            applicant = Applicant(**validated_data, account_id=user.id)
         applicant.save()
         return applicant
 
 
 class ApplicantSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    account = SimpleAccountSerializer(many=False, read_only=True)
 
     class Meta:
         model = Applicant
         fields = [
             "id",
             "user",
+            "account",
             "competition",
             "access_id",
             "access_password",
@@ -337,7 +345,7 @@ class ApplicantSerializer(serializers.ModelSerializer):
 
         if isinstance(user, AnonymousUser):
             if not competition_id:
-                raise serializers.ValidationError(_("알 수 없는 요청입니다."))
+                raise InvalidRequest(_("잘못된 요청입니다."))
             if not access_id:
                 raise serializers.ValidationError(
                     {"access_id": _("접속 아이디를 입력해주세요.")}
