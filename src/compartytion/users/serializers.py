@@ -161,6 +161,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = ["username", "avatar", "introduction", "displayed_name", "hidden_name"]
+        read_only_fields = ["avatar"]
         extra_kwargs = {"username": {"required": False}}
 
     def validate_username(self, username):
@@ -168,22 +169,32 @@ class ProfileSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(_("사용할 수 없는 사용자명입니다."))
         return username
 
+
+class ProfileAvatarUploadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ["avatar"]
+
+    def validate_avatar(self, avatar):
+        if avatar is None:
+            raise serializers.ValidationError(_("파일을 찾을 수 없습니다."))
+        return avatar
+
     def update(self, instance, validated_data):
         avatar = validated_data.pop("avatar", None)
-        if avatar:
-            with Image.open(avatar) as img:
-                new_img = ImageOps.fit(img, settings.PROFILE_AVATAR_SIZE)
+        with Image.open(avatar) as img:
+            new_img = ImageOps.fit(img, settings.PROFILE_AVATAR_SIZE)
 
-                if avatar.name.lower().endswith(".jpg") or avatar.name.lower().endswith(
-                    ".jpeg"
-                ):
-                    format = "JPEG"
-                elif avatar.name.lower().endswith(".png"):
-                    format = "PNG"
+            if avatar.name.lower().endswith(".jpg") or avatar.name.lower().endswith(
+                ".jpeg"
+            ):
+                format = "JPEG"
+            elif avatar.name.lower().endswith(".png"):
+                format = "PNG"
 
-                output = BytesIO()
-                new_img.save(output, format=format, optimize=True)
-                instance.avatar = File(output, name=avatar.name)
+            output = BytesIO()
+            new_img.save(output, format=format, optimize=True)
+            instance.avatar = File(output, name=avatar.name)
         return super().update(instance, validated_data)
 
 

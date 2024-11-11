@@ -5,7 +5,11 @@ from django.conf import settings
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from PIL import Image
 
-from .serializers import ProfileSerializer, AccountCreationSerializer
+from .serializers import (
+    ProfileSerializer,
+    AccountCreationSerializer,
+    ProfileAvatarUploadSerializer,
+)
 from .models import Profile, Account, UnauthenticatedEmail
 
 
@@ -18,7 +22,7 @@ class ProfileSerializerTestCase(TestCase):
         )
         cls.profile = Profile.objects.get(account_id=account.id)
 
-    def test_update_profile_avatar(self):
+    def test_upload_profile_avatar(self):
         image = Image.new("RGB", (123, 456))
         output = BytesIO()
         image.save(output, format="JPEG")
@@ -26,7 +30,7 @@ class ProfileSerializerTestCase(TestCase):
         sample_img = InMemoryUploadedFile(
             output, "ImageField", "test.jpg", "image/jpeg", sys.getsizeof(output), None
         )
-        serializer = ProfileSerializer(
+        serializer = ProfileAvatarUploadSerializer(
             instance=self.profile, data={"avatar": sample_img}, partial=True
         )
         serializer.is_valid(raise_exception=True)

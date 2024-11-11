@@ -18,6 +18,7 @@ from .serializers import (
     PasswordChangeSerializer,
     ProfileSerializer,
     SimpleProfileSerializer,
+    ProfileAvatarUploadSerializer,
 )
 
 
@@ -90,7 +91,6 @@ class AccountViewSet(viewsets.GenericViewSet):
     @action(
         methods=["PATCH"],
         detail=False,
-        parser_classes=[MultiPartParser],
         serializer_class=ProfileSerializer,
     )
     def change_profile(self, request):
@@ -100,6 +100,23 @@ class AccountViewSet(viewsets.GenericViewSet):
         serializer.save()
         return Response(
             {"detail": _("변경사항이 적용됐습니다.")}, status=status.HTTP_200_OK
+        )
+
+    @action(
+        methods=["PATCH"],
+        detail=False,
+        parser_classes=[MultiPartParser],
+        serializer_class=ProfileAvatarUploadSerializer,
+    )
+    def upload_avatar(self, request):
+        profile = request.user.profile
+        serializer = ProfileAvatarUploadSerializer(
+            instance=profile, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {"detail": _("프로필 아바타가 변경됐습니다.")}, status=status.HTTP_200_OK
         )
 
     @action(methods=["POST"], detail=False, serializer_class=OTPRequestSerializer)
