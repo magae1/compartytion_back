@@ -183,7 +183,8 @@ class ProfileAvatarUploadSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         avatar = validated_data.pop("avatar", None)
         with Image.open(avatar) as img:
-            new_img = ImageOps.fit(img, settings.PROFILE_AVATAR_SIZE)
+            new_img = ImageOps.exif_transpose(img)
+            new_img = ImageOps.fit(new_img, settings.PROFILE_AVATAR_SIZE)
 
             if avatar.name.lower().endswith(".jpg") or avatar.name.lower().endswith(
                 ".jpeg"
