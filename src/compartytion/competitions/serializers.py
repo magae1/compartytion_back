@@ -126,24 +126,31 @@ class CompetitionCreateSerializer(serializers.ModelSerializer):
 
 
 class AddManagerOnCompetitionSerializer(serializers.Serializer):
-    username = serializers.CharField()
+    creator = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    usernames = serializers.ListField(child=serializers.CharField())
 
-    def validate_username(self, value):
-        if not Profile.objects.filter(username=value).exists():
-            raise serializers.ValidationError(_("존재하지 않는 유저명입니다."))
-        return value
+    def update(self, instance: Competition, validated_data):
+        usernames = validated_data["usernames"]
 
-    def update(self, instance, validated_data):
-        username = validated_data["username"]
-        if instance.managers.filter(profile__username=username).exists():
+        if instance.managers.filter(profile__username__in=usernames).exists():
             raise serializers.ValidationError(
-                {"username": _("이미 매니저로 초대된 유저입니다.")}
+                {"usernames": _("이미 초대된 관리자가 포함되어 있습니다.")}
             )
+
         num_of_managers = instance.managers.count()
-        Management.objects.create(
-            competition=instance,
-            account=Account.objects.get(profile__username=username),
-            nickname=f"매니저 {num_of_managers + 1}",
+        account_ids = Profile.objects.filter(username__in=usernames).values_list(
+            "account_id", flat=True
+        )
+
+        Management.objects.bulk_create(
+            [
+                Management(
+                    account_id=account_id,
+                    nickname=_(f"관리자 {idx}"),
+                    competition=instance,
+                )
+                for idx, account_id in enumerate(account_ids, start=num_of_managers + 1)
+            ]
         )
         return instance
 

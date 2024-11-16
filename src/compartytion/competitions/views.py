@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import viewsets, mixins, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.generics import get_object_or_404
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import (
     IsAuthenticatedOrReadOnly,
@@ -134,14 +135,16 @@ class CompetitionViewSet(viewsets.GenericViewSet, mixins.DestroyModelMixin):
         serializer_class=AddManagerOnCompetitionSerializer,
         permission_classes=[IsCreator],
     )
-    def add_manager(self, request, pk=None):
+    def invite_managers(self, request, pk=None):
         competition = self.get_object()
         serializer = AddManagerOnCompetitionSerializer(
             competition, data=request.data, partial=True
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(status=status.HTTP_200_OK)
+        return Response(
+            data={"detail": _("매니저가 추가됐습니다.")}, status=status.HTTP_200_OK
+        )
 
 
 class ManagementViewSet(
@@ -152,6 +155,11 @@ class ManagementViewSet(
 
     def get_queryset(self):
         return Management.objects.filter(competition__id=self.kwargs["competition_pk"])
+
+    def get_permission_classes(self):
+        if self.action == "create":
+            return [IsCreator]
+        return self.permission_classes
 
     def partial_update(self, request, pk=None):
         management = self.get_object()
