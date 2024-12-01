@@ -5,7 +5,7 @@ from drf_spectacular.utils import extend_schema_field
 
 from .models import Competition, Rule, Management, Applicant, Participant
 from .exceptions import AlreadyApplied, NotApplied, AlreadyBeParticipant, InvalidRequest
-from ..users.models import Profile, Account
+from ..users.models import Profile
 from ..users.serializers import SimpleAccountSerializer
 
 
@@ -76,6 +76,18 @@ class ManagementSerializer(serializers.ModelSerializer):
             "accepted": {"read_only": True},
         }
 
+    def update(self, instance, validated_data):
+        try:
+            creator_id = Competition.objects.get(id=instance.competition).creator_id
+            if creator_id == validated_data["account"]:
+                raise serializers.ValidationError({"account": _("수정할 수 없습니다.")})
+        except Competition.DoesNotExist:
+            raise serializers.ValidationError(
+                {"competition": _("대회를 찾을 수 없습니다.")}
+            )
+
+        return super().update(instance, validated_data)
+
 
 class ManagementNicknameSerializer(serializers.ModelSerializer):
     class Meta:
@@ -101,11 +113,23 @@ class CompetitionCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         managers_data = validated_data.pop("managers")
-        creator_username = self.validated_data["creator"].profile.username
+        creator = self.validated_data["creator"]
+        creator_username = creator.profile.username
         while creator_username in managers_data:
             managers_data.remove(creator_username)
 
         competition = Competition.objects.create(**validated_data)
+        Management.objects.create(
+            competition=competition,
+            account_id=creator.id,
+            nickname="개최자",
+            is_creator=True,
+            handle_rules=True,
+            handle_content=True,
+            handle_applicants=True,
+            handle_participants=True,
+            accepted=True,
+        )
 
         if managers_data is not None:
             account_ids = Profile.objects.filter(
@@ -194,7 +218,6 @@ class CompetitionSerializer(SimpleCompetitionSerializer):
             "title",
             "created_at",
             "creator",
-            "creator_nickname",
             "status",
             "content",
             "is_team_game",
@@ -380,3 +403,20 @@ class ApplicantSerializer(serializers.ModelSerializer):
         except Applicant.DoesNotExist:
             raise NotApplied()
         return applicant
+
+
+class ManagerPermissionsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Management
+        fields = [
+            "handle_rules",
+            "handle_content",
+            "handle_applicants",
+            "handle_participants",
+        ]
+        read_only_fields = [
+            "handle_rules",
+            "handle_content",
+            "handle_applicants",
+            "handle_participants",
+        ]

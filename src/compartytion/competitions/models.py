@@ -23,9 +23,6 @@ class Competition(models.Model):
         on_delete=models.SET_NULL,
         related_name="creator",
     )
-    creator_nickname = models.CharField(
-        _("개최자 닉네임"), default=_("개최자"), max_length=30
-    )
     managers = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         through="Management",
@@ -87,6 +84,7 @@ class Management(models.Model):
         Competition, verbose_name=_("대회"), on_delete=models.PROTECT, editable=False
     )
     nickname = models.CharField(_("닉네임"), max_length=30)
+    is_creator = models.BooleanField(_("개최자 여부"), default=False)
     handle_rules = models.BooleanField(_("규칙 변경 가능 여부"), default=False)
     handle_content = models.BooleanField(_("내용 변경 가능 여부"), default=False)
     handle_applicants = models.BooleanField(_("신청자 관리 가능 여부"), default=False)

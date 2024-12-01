@@ -27,6 +27,7 @@ from .serializers import (
     ApplicationSerializer,
     ApplicantSerializer,
     ParticipantSerializer,
+    ManagerPermissionsSerializer,
 )
 from .permissions import IsCreator, ManagementPermission
 
@@ -167,6 +168,18 @@ class ManagementViewSet(
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(status=status.HTTP_200_OK)
+
+    @action(
+        methods=["GET"], detail=False, serializer_class=ManagerPermissionsSerializer
+    )
+    def me(self, request, competition_pk=None):
+        queryset = self.get_queryset()
+        management = get_object_or_404(queryset, account_id=request.user.id)
+        serializer = ManagerPermissionsSerializer(
+            management, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.data)
 
 
 class ApplicantViewSet(
